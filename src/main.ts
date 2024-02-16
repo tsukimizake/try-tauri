@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/tauri";
+import "./elm/main.js";
 
 let greetInputEl: HTMLInputElement | null;
 let greetMsgEl: HTMLElement | null;
