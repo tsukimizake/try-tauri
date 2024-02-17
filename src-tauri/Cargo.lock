@@ -607,6 +607,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
 
 [[package]]
+name = "elm_rs"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "043b06877e194324cabd54e3f0eef99b0131d80b6b6073cb22697bed97862aa3"
+dependencies = [
+ "elm_rs_derive",
+]
+
+[[package]]
+name = "elm_rs_derive"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b3e657caae2215ca5380ae58302ec2ff1b6c87a55aa9137444972cd9b3540bf"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "embed-resource"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2692,6 +2713,7 @@ dependencies = [
 name = "tauri-app"
 version = "0.0.0"
 dependencies = [
+ "elm_rs",
  "serde",
  "serde_json",
  "tauri",

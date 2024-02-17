@@ -27,11 +27,5 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 app.ports.readStlFile.subscribe(async function () {
-  console.log("wait1sec");
-  await sleep(1000);
-  app.ports.readStlFileResult.send("done");
+  await invoke("read_stl_file");
 });
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
