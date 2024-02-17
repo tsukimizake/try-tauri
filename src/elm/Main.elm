@@ -1,14 +1,11 @@
-module Main exposing (main)
-
--- Press a button to generate a random number between 1 and 6.
---
--- Read how it works:
---   https://guide.elm-lang.org/effects/random.html
---
+port module Main exposing (main)
 
 import Browser
 import Html exposing (..)
 import Html.Events exposing (..)
+
+
+port wait1sec : () -> Cmd msg
 
 
 
@@ -47,20 +44,14 @@ init _ =
 
 type Msg
     = Roll
-    | NewFace Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Roll ->
-            ( Model 3
-            , Cmd.none
-            )
-
-        NewFace newFace ->
-            ( Model newFace
-            , Cmd.none
+            ( Model (model.dieFace + 1)
+            , wait1sec ()
             )
 
 
@@ -82,5 +73,4 @@ view model =
     div []
         [ h1 [] [ text (String.fromInt model.dieFace) ]
         , button [ onClick Roll ] [ text "Roll" ]
-        , text "honihoni"
         ]

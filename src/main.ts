@@ -21,3 +21,7 @@ window.addEventListener("DOMContentLoaded", () => {
     greet();
   });
 });
+
+// (window as any).app.ports.wait1sec.subscribe(function () {
+//   console.log("wait1sec");
+// });
