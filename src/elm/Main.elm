@@ -5,7 +5,10 @@ import Html exposing (..)
 import Html.Events exposing (..)
 
 
-port wait1sec : () -> Cmd msg
+port readStlFile : () -> Cmd msg
+
+
+port readStlFileResult : (String -> msg) -> Sub msg
 
 
 
@@ -27,13 +30,13 @@ main =
 
 
 type alias Model =
-    { dieFace : Int
+    { file : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model 1
+    ( Model ""
     , Cmd.none
     )
 
@@ -43,16 +46,24 @@ init _ =
 
 
 type Msg
-    = Roll
+    = ReadStlFile
+    | ReadStlFileResult String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Roll ->
-            ( Model (model.dieFace + 1)
-            , wait1sec ()
+        ReadStlFile ->
+            ( model
+            , readStlFile ()
             )
+
+        ReadStlFileResult file ->
+            let
+                _ =
+                    Debug.log "ReadStlFile" file
+            in
+            ( { model | file = file }, Cmd.none )
 
 
 
@@ -60,8 +71,10 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.none
+subscriptions _ =
+    Sub.batch
+        [ readStlFileResult ReadStlFileResult
+        ]
 
 
 
@@ -71,6 +84,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [] [ text (String.fromInt model.dieFace) ]
-        , button [ onClick Roll ] [ text "Roll" ]
+        [ h1 [] [ text "Read stl file" ]
+        , button [ onClick ReadStlFile ] [ text "Read stl file" ]
+        , div [] [ text model.file ]
         ]
