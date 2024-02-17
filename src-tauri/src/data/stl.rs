@@ -2,7 +2,7 @@ use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode)]
+#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
 pub struct Stl {
-    bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
 }

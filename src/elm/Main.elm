@@ -1,14 +1,19 @@
 port module Main exposing (main)
 
+import Bindings exposing (Stl)
 import Browser
 import Html exposing (..)
 import Html.Events exposing (..)
+import Json.Decode
 
 
 port readStlFile : () -> Cmd msg
 
 
 port readStlFileResult : (String -> msg) -> Sub msg
+
+
+port tauriMsg : (Json.Decode.Value -> msg) -> Sub msg
 
 
 
@@ -30,14 +35,14 @@ main =
 
 
 type alias Model =
-    { file : String
+    { file : Stl
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model ""
-    , Cmd.none
+    ( Model (Stl [])
+    , readStlFile ()
     )
 
 
@@ -47,7 +52,7 @@ init _ =
 
 type Msg
     = ReadStlFile
-    | ReadStlFileResult String
+    | TauriMsg Json.Decode.Value
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -58,12 +63,14 @@ update msg model =
             , readStlFile ()
             )
 
-        ReadStlFileResult file ->
-            let
-                _ =
-                    Debug.log "ReadStlFile" file
-            in
-            ( { model | file = file }, Cmd.none )
+        TauriMsg value ->
+            ( { model
+                | file =
+                    Json.Decode.decodeValue Bindings.stlDecoder value
+                        |> Result.withDefault (Stl [])
+              }
+            , Cmd.none
+            )
 
 
 
@@ -73,7 +80,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ readStlFileResult ReadStlFileResult
+        [ tauriMsg TauriMsg
         ]
 
 
@@ -86,5 +93,5 @@ view model =
     div []
         [ h1 [] [ text "Read stl file" ]
         , button [ onClick ReadStlFile ] [ text "Read stl file" ]
-        , div [] [ text model.file ]
+        , div [] [ text <| Debug.toString model.file ]
         ]

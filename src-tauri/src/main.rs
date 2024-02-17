@@ -20,8 +20,6 @@ fn read_stl_file(window: tauri::Window) -> () {
                     let mut buf: Vec<u8> = Vec::new();
                     input.read_to_end(&mut buf).unwrap();
                     test_app_handle(window, buf);
-
-                    return ();
                 }
                 None => {
                     println!("User closed the dialog without selecting a file");
@@ -33,11 +31,12 @@ fn read_stl_file(window: tauri::Window) -> () {
 // make the command
 #[tauri::command]
 fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
-    match window.emit("tauri_msg", data.clone()) {
-        Ok(_) => println!("event sent successfully: {:?}", data),
+    match window.emit("tauri_msg", Stl { bytes: data }) {
+        Ok(_) => println!("event sent successfully"),
         Err(e) => println!("failed to send event: {}", e),
     }
 }
+
 fn main() {
     // the target would typically be a file
     let mut target = vec![];

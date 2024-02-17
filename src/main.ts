@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { Elm } from "./elm/Main.elm";
+import { listen } from "@tauri-apps/api/event";
 
 let greetInputEl: HTMLInputElement | null;
 let greetMsgEl: HTMLElement | null;
@@ -24,6 +25,11 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     greet();
   });
+});
+
+await listen("tauri_msg", (e) => {
+  console.log(e);
+  app.ports.tauriMsg.send(e.payload);
 });
 
 app.ports.readStlFile.subscribe(async function () {
