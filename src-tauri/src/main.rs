@@ -28,7 +28,7 @@ fn read_stl_file(window: tauri::Window) -> () {
         })
 }
 
-// make the command
+// TODO data should be a struct with tag
 #[tauri::command]
 fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
     match window.emit("tauri_msg", Stl { bytes: data }) {

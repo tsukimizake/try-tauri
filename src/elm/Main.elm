@@ -64,6 +64,7 @@ update msg model =
             )
 
         TauriMsg value ->
+            -- TODO switch with some label
             ( { model
                 | file =
                     Json.Decode.decodeValue Bindings.stlDecoder value
@@ -93,5 +94,5 @@ view model =
     div []
         [ h1 [] [ text "Read stl file" ]
         , button [ onClick ReadStlFile ] [ text "Read stl file" ]
-        , div [] [ text <| Debug.toString model.file ]
+        , div [] [ text <| "length: " ++ (String.fromInt <| List.length <| .bytes <| model.file) ]
         ]
