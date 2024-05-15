@@ -3,6 +3,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
-pub struct Stl {
+pub struct StlBytes {
     pub bytes: Vec<u8>,
 }

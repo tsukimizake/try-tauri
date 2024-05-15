@@ -10,13 +10,15 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@elm-tooling/elm-language-server": "^2.8.0",
     "@tauri-apps/api": "^1.5.2",
-    "elm": "^0.19.1-6"
+    "elm": "^0.19.1-6",
+    "elm-format": "^0.8.7"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.8",
     "typescript": "^5.0.2",
-    "vite": "^5.1.3",
+    "vite": "^5.2.11",
     "vite-plugin-elm": "^3.0.0"
   }
 }

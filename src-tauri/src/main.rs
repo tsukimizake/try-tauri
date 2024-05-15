@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod data;
 
-use data::stl::Stl;
+use data::stl::StlBytes;
 use std::io::Read;
 use tauri::api::dialog::FileDialogBuilder;
 
@@ -15,6 +15,7 @@ fn read_stl_file(window: tauri::Window) -> () {
             // the file path is `None` if the user closed the dialog
             match file_path {
                 Some(path) => {
+
                     let mut input = std::fs::File::open(path).unwrap();
 
                     let mut buf: Vec<u8> = Vec::new();
@@ -31,7 +32,7 @@ fn read_stl_file(window: tauri::Window) -> () {
 // TODO data should be a struct with tag
 #[tauri::command]
 fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
-    match window.emit("tauri_msg", Stl { bytes: data }) {
+    match window.emit("tauri_msg", StlBytes { bytes: data }) {
         Ok(_) => println!("event sent successfully"),
         Err(e) => println!("failed to send event: {}", e),
     }
@@ -42,8 +43,8 @@ fn main() {
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!("Bindings", &mut target, {
-        encoders: [Stl],
-        decoders: [Stl],
+        encoders: [StlBytes],
+        decoders: [StlBytes],
     })
     .unwrap();
     let output = String::from_utf8(target).unwrap();

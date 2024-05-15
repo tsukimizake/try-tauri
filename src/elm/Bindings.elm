@@ -28,21 +28,21 @@ resultDecoder errDecoder okDecoder =
         ]
 
 
-type alias Stl =
+type alias StlBytes =
     { bytes : List (Int)
     }
 
 
-stlEncoder : Stl -> Json.Encode.Value
-stlEncoder struct =
+stlBytesEncoder : StlBytes -> Json.Encode.Value
+stlBytesEncoder struct =
     Json.Encode.object
         [ ( "bytes", (Json.Encode.list (Json.Encode.int)) struct.bytes )
         ]
 
 
-stlDecoder : Json.Decode.Decoder Stl
-stlDecoder =
-    Json.Decode.succeed Stl
+stlBytesDecoder : Json.Decode.Decoder StlBytes
+stlBytesDecoder =
+    Json.Decode.succeed StlBytes
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "bytes" (Json.Decode.list (Json.Decode.int))))
 
 
