@@ -6,7 +6,6 @@ import Browser
 import Bytes exposing (Endianness(..))
 import Camera3d exposing (Camera3d)
 import Color
-import Decoder exposing (Stl, Vec, decodeStl, encodeToBytes)
 import Direction3d
 import Html exposing (..)
 import Html.Attributes exposing (value)
@@ -17,6 +16,7 @@ import Pixels exposing (int)
 import Point3d
 import Scene3d as Scene exposing (backgroundColor)
 import Scene3d.Material as Material
+import StlDecoder exposing (Stl, Vec, decodeStl, encodeToBytes)
 import Triangle3d
 import Viewpoint3d
 
