@@ -123,13 +123,12 @@ view model =
     div []
         [ h1 [] [ text "Read stl file" ]
         , button [ onClick ReadStlFile ] [ text "Read stl file" ]
-        , div [] [ text <| "len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> stl.numTriangles) <| model.stl) ]
         , model.stl
             |> Maybe.map .triangles
             |> Maybe.map
                 (\triangles ->
                     Scene.unlit
-                        { dimensions = ( int 200, int 200 )
+                        { dimensions = ( int 400, int 400 )
                         , camera = camera model.viewPoint
                         , clipDepth = Length.meters 1
                         , background = backgroundColor Color.black
@@ -138,6 +137,7 @@ view model =
                         }
                 )
             |> Maybe.withDefault (text "")
+        , div [] [ text <| "len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
         , div [] [ text <| "decoded: " ++ Debug.toString model.stl ]
         ]
 

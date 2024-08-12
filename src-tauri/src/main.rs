@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod data;
+mod lisp;
 
 use data::stl::StlBytes;
 use std::io::Read;
@@ -15,7 +16,6 @@ fn read_stl_file(window: tauri::Window) -> () {
             // the file path is `None` if the user closed the dialog
             match file_path {
                 Some(path) => {
-
                     let mut input = std::fs::File::open(path).unwrap();
 
                     let mut buf: Vec<u8> = Vec::new();
