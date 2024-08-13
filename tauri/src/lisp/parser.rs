@@ -30,7 +30,14 @@ pub enum Expr {
     },
 }
 
-type Span<'a> = LocatedSpan<&'a str>;
+pub fn run(input: &str) -> Result<Expr, String> {
+    match expr(LocatedSpan::new(input)) {
+        Ok((_, expr)) => Ok(expr),
+        Err(e) => Err(format!("Error: {:?}", e)),
+    }
+}
+
+pub type Span<'a> = LocatedSpan<&'a str>;
 
 fn symbol(input: Span) -> IResult<Span, Expr> {
     map(
@@ -74,7 +81,7 @@ fn list(input: Span) -> IResult<Span, Expr> {
     )(input)
 }
 
-pub fn expr(input: Span) -> IResult<Span, Expr> {
+fn expr(input: Span) -> IResult<Span, Expr> {
     alt((integer, double, symbol, list))(input)
 }
 
