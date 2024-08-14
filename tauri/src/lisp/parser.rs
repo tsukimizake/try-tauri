@@ -2,32 +2,70 @@ use nom::{
     branch::alt,
     bytes::complete::take_while1,
     character::complete::{char, multispace0},
-    combinator::map,
+    combinator::{map, opt},
     multi::many0,
-    sequence::delimited,
+    sequence::{delimited, preceded},
     IResult,
 };
 
 use nom_locate::LocatedSpan;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Symbol {
         name: String,
-        location: usize,
+        location: Option<usize>,
     },
     List {
         elements: Vec<Expr>,
-        location: usize,
+        location: Option<usize>,
     },
     Integer {
         value: i64,
-        location: usize,
+        location: Option<usize>,
     },
     Double {
         value: f64,
-        location: usize,
+        location: Option<usize>,
     },
+    QuotedList {
+        elements: Vec<Expr>,
+        location: Option<usize>,
+    },
+    Builtin(fn(&[Expr]) -> Result<Expr, String>),
+}
+
+impl Expr {
+    pub fn symbol(name: &str) -> Self {
+        Expr::Symbol {
+            name: name.to_string(),
+            location: None,
+        }
+    }
+    pub fn integer(value: i64) -> Self {
+        Expr::Integer {
+            value,
+            location: None,
+        }
+    }
+    pub fn double(value: f64) -> Self {
+        Expr::Double {
+            value,
+            location: None,
+        }
+    }
+    pub fn list(elements: Vec<Expr>) -> Self {
+        Expr::List {
+            elements,
+            location: None,
+        }
+    }
+    pub fn quoted_list(elements: Vec<Expr>) -> Self {
+        Expr::QuotedList {
+            elements,
+            location: None,
+        }
+    }
 }
 
 pub fn run(input: &str) -> Result<Expr, String> {
@@ -44,7 +82,7 @@ fn symbol(input: Span) -> IResult<Span, Expr> {
         take_while1(|c: char| c.is_alphanumeric() || "+-*/<>".contains(c)),
         |s: Span| Expr::Symbol {
             name: s.fragment().to_string(),
-            location: s.location_offset(),
+            location: Some(s.location_offset()),
         },
     )(input)
 }
@@ -53,7 +91,7 @@ fn integer(input: Span) -> IResult<Span, Expr> {
     map(take_while1(|c: char| c.is_digit(10)), |s: Span| {
         Expr::Integer {
             value: s.fragment().parse().unwrap(),
-            location: s.location_offset(),
+            location: Some(s.location_offset()),
         }
     })(input)
 }
@@ -62,7 +100,7 @@ fn double(input: Span) -> IResult<Span, Expr> {
         take_while1(|c: char| c.is_digit(10) || c == '.'),
         |s: Span| Expr::Double {
             value: s.fragment().parse().unwrap(),
-            location: s.location_offset(),
+            location: Some(s.location_offset()),
         },
     )(input)
 }
@@ -76,13 +114,22 @@ fn list(input: Span) -> IResult<Span, Expr> {
         ),
         |elements: Vec<Expr>| Expr::List {
             elements,
-            location: input.location_offset(),
+            location: Some(input.location_offset()),
         },
     )(input)
 }
 
+fn quoted_list(input: Span) -> IResult<Span, Expr> {
+    map(
+        preceded(char('\''), list),
+        |list_expr: Expr| match list_expr {
+            Expr::List { elements, location } => Expr::QuotedList { elements, location },
+            _ => unreachable!(),
+        },
+    )(input)
+}
 fn expr(input: Span) -> IResult<Span, Expr> {
-    alt((integer, double, symbol, list))(input)
+    alt((integer, double, symbol, quoted_list, list))(input)
 }
 
 #[cfg(test)]
@@ -133,18 +180,18 @@ mod tests {
                 elements: vec![
                     Expr::Symbol {
                         name: "+".to_string(),
-                        location: 1,
+                        location: Some(1),
                     },
                     Expr::Integer {
                         value: 1,
-                        location: 3,
+                        location: Some(3),
                     },
                     Expr::Integer {
                         value: 2,
-                        location: 5,
+                        location: Some(5),
                     },
                 ],
-                location: 0,
+                location: Some(0),
             })
         );
     }
@@ -155,7 +202,44 @@ mod tests {
                 location: _,
             } => Some(Expr::List {
                 elements,
-                location: 0,
+                location: Some(0),
+            }),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn test_quoted_list() {
+        let result = expr(Span::new("'(1 2 3)"));
+        assert_eq!(
+            get_quoted_list(result),
+            Some(Expr::QuotedList {
+                elements: vec![
+                    Expr::Integer {
+                        value: 1,
+                        location: Some(2),
+                    },
+                    Expr::Integer {
+                        value: 2,
+                        location: Some(4),
+                    },
+                    Expr::Integer {
+                        value: 3,
+                        location: Some(6),
+                    },
+                ],
+                location: Some(0),
+            })
+        );
+    }
+    fn get_quoted_list(result: IResult<Span, Expr>) -> Option<Expr> {
+        match result.unwrap().1 {
+            Expr::QuotedList {
+                elements,
+                location: _,
+            } => Some(Expr::QuotedList {
+                elements,
+                location: Some(0),
             }),
             _ => None,
         }

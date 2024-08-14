@@ -1,55 +1,56 @@
 use crate::lisp::parser;
+use crate::lisp::parser::Expr;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
-enum Value {
-    Integer(i64),
-    Double(f64),
-    Symbol(String),
-    List(Vec<Value>),
-    Function(fn(&[Value]) -> Result<Value, String>),
-}
+type Env = HashMap<String, Expr>;
 
-type Env = HashMap<String, Value>;
-
-fn initial_env() -> Env {
+pub fn initial_env() -> Env {
     let mut env = Env::new();
-    env.insert("+".to_string(), Value::Function(add));
+    env.insert("+".to_string(), Expr::Builtin(add));
     env
 }
 
-fn eval(expr: &parser::Expr, env: &mut Env) -> Result<Value, String> {
+pub fn eval(expr: &Expr, env: &mut Env) -> Result<Expr, String> {
     match expr {
-        parser::Expr::Symbol { name, .. } => env
+        Expr::Symbol { name, .. } => env
             .get(name)
             .cloned()
             .ok_or_else(|| format!("Undefined symbol: {}", name)),
-        parser::Expr::Integer { value, .. } => Ok(Value::Integer(*value)),
-        parser::Expr::Double { value, .. } => Ok(Value::Double(*value)),
-        parser::Expr::List { elements, .. } => {
+        Expr::Integer { value, .. } => Ok(Expr::integer(*value)),
+        Expr::Double { value, .. } => Ok(Expr::double(*value)),
+        Expr::List { elements, .. } => {
             if elements.is_empty() {
-                return Ok(Value::List(vec![]));
+                return Ok(Expr::list(vec![]));
             }
             let first = eval(&elements[0], env)?;
             match first {
-                Value::Function(f) => {
-                    let args: Result<Vec<Value>, String> =
+                Expr::Builtin(f) => {
+                    let args: Result<Vec<Expr>, String> =
                         elements[1..].iter().map(|arg| eval(arg, env)).collect();
                     f(&args?)
                 }
                 _ => Err(format!("First element of list is not a function")),
             }
         }
+        Expr::QuotedList { elements, .. } => Ok(Expr::list(
+            elements
+                .into_iter()
+                .map(|e| eval(e, env).unwrap())
+                .collect(),
+        )),
+        Expr::Builtin(_) => Err("Cannot evaluate builtin function".to_string()),
     }
 }
 
-fn add(args: &[Value]) -> Result<Value, String> {
+fn add(args: &[Expr]) -> Result<Expr, String> {
     if args.len() != 2 {
         return Err("add requires exactly 2 arguments".to_string());
     }
     match (&args[0], &args[1]) {
-        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
-        (Value::Double(a), Value::Double(b)) => Ok(Value::Double(a + b)),
+        (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
+            Ok(Expr::integer(a + b))
+        }
+        (Expr::Double { value: a, .. }, Expr::Double { value: b, .. }) => Ok(Expr::double(a + b)),
         _ => Err("add requires two integers or two doubles".to_string()),
     }
 }
@@ -64,6 +65,6 @@ mod tests {
 
         let expr = parser::run("(+ 1 2)").unwrap();
 
-        assert_eq!(eval(&expr, &mut env), Ok(Value::Integer(3)));
+        assert_eq!(eval(&expr, &mut env), Ok(Expr::integer(3)));
     }
 }
