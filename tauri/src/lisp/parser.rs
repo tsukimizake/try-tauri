@@ -1,8 +1,9 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use ne::ErrorKind;
 use nom::character::complete::space0;
 use nom::error as ne;
+use std::collections::HashMap;
 
 use nom::{
     branch::alt,
@@ -15,6 +16,38 @@ use nom::{
 };
 
 use nom_locate::LocatedSpan;
+
+#[derive(Debug, PartialEq)]
+pub struct Env {
+    parent: Option<Rc<RefCell<Env>>>,
+    vars: HashMap<String, Rc<Expr>>,
+}
+
+impl Env {
+    pub fn new() -> Env {
+        Env {
+            parent: None,
+            vars: HashMap::new(),
+        }
+    }
+
+    pub fn make_child(parent: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
+        Rc::new(RefCell::new(Env {
+            parent: Some(parent),
+            vars: HashMap::new(),
+        }))
+    }
+    pub fn insert(&mut self, name: String, value: Rc<Expr>) {
+        self.vars.insert(name, value);
+    }
+    pub fn get(&self, name: &str) -> Option<Rc<Expr>> {
+        self.vars.get(name).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.borrow().get(name))
+        })
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
@@ -44,9 +77,10 @@ pub enum Expr {
         trailing_newline: bool,
     },
     Builtin(fn(&[Rc<Expr>]) -> Result<Rc<Expr>, String>),
-    Lambda {
+    Clausure {
         args: Vec<String>,
         body: Rc<Expr>,
+        env: Rc<RefCell<Env>>,
     },
 }
 
@@ -86,6 +120,19 @@ impl Expr {
             trailing_newline: false,
         }
     }
+    pub fn is_symbol(&self, name: &str) -> bool {
+        match self {
+            Expr::Symbol { name: n, .. } => n == name,
+            _ => false,
+        }
+    }
+    pub fn as_symbol(&self) -> Result<&str, String> {
+        match self {
+            Expr::Symbol { name, .. } => Ok(name),
+            _ => Err("Not a symbol".to_string()),
+        }
+    }
+
     pub fn set_newline(self: Self, b: bool) -> Self {
         match self {
             Expr::Symbol { name, location, .. } => Expr::Symbol {
@@ -120,7 +167,7 @@ impl Expr {
                 trailing_newline: b,
             },
             Expr::Builtin(_) => self,
-            Expr::Lambda { .. } => self,
+            Expr::Clausure { .. } => self,
         }
     }
     pub fn has_newline(&self) -> bool {
@@ -141,7 +188,7 @@ impl Expr {
                 trailing_newline, ..
             } => *trailing_newline,
             Expr::Builtin(_) => false,
-            Expr::Lambda { .. } => false,
+            Expr::Clausure { .. } => false,
         }
     }
 }
