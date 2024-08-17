@@ -191,6 +191,17 @@ impl Expr {
             Expr::Clausure { .. } => false,
         }
     }
+    pub fn location(&self) -> Option<usize> {
+        match self {
+            Expr::Symbol { location, .. } => *location,
+            Expr::List { location, .. } => *location,
+            Expr::Integer { location, .. } => *location,
+            Expr::Double { location, .. } => *location,
+            Expr::Quote { location, .. } => *location,
+            Expr::Builtin(_) => None,
+            Expr::Clausure { .. } => None,
+        }
+    }
 }
 
 pub fn parse_file(input: &str) -> Result<Vec<Expr>, String> {

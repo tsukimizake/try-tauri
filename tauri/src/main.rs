@@ -39,6 +39,7 @@ fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
 }
 
 fn main() {
+    let expr = lisp::run_file("((lambda (a b) (+ a b)) 1 2)").unwrap();
     // the target would typically be a file
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
