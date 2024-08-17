@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use ne::ErrorKind;
 use nom::character::complete::space0;
 use nom::error as ne;
@@ -5,7 +7,7 @@ use nom::error as ne;
 use nom::{
     branch::alt,
     bytes::complete::take_while1,
-    character::complete::{char, multispace0},
+    character::complete::char,
     combinator::map,
     multi::many0,
     sequence::{delimited, pair, preceded, tuple},
@@ -22,7 +24,7 @@ pub enum Expr {
         trailing_newline: bool,
     },
     List {
-        elements: Vec<Expr>,
+        elements: Vec<Rc<Expr>>,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -41,7 +43,11 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
-    Builtin(fn(&[Expr]) -> Result<Box<Expr>, String>),
+    Builtin(fn(&[Rc<Expr>]) -> Result<Rc<Expr>, String>),
+    Lambda {
+        args: Vec<String>,
+        body: Rc<Expr>,
+    },
 }
 
 impl Expr {
@@ -66,7 +72,7 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    pub fn list(elements: Vec<Expr>) -> Self {
+    pub fn list(elements: Vec<Rc<Expr>>) -> Self {
         Expr::List {
             elements,
             location: None,
@@ -114,6 +120,7 @@ impl Expr {
                 trailing_newline: b,
             },
             Expr::Builtin(_) => self,
+            Expr::Lambda { .. } => self,
         }
     }
     pub fn has_newline(&self) -> bool {
@@ -134,11 +141,32 @@ impl Expr {
                 trailing_newline, ..
             } => *trailing_newline,
             Expr::Builtin(_) => false,
+            Expr::Lambda { .. } => false,
         }
     }
 }
 
-pub fn run(input: &str) -> Result<Expr, String> {
+pub fn parse_file(input: &str) -> Result<Vec<Expr>, String> {
+    match tokenize(LocatedSpan::new(input)) {
+        Ok((_, tokens)) => {
+            let mut exprs = vec![];
+            let mut rest = &tokens[..];
+            while rest.len() > 0 {
+                match expr(rest) {
+                    Ok((new_rest, expr)) => {
+                        exprs.push(expr);
+                        rest = new_rest;
+                    }
+                    Err(e) => return Err(format!("Error: {:?}", e)),
+                }
+            }
+            Ok(exprs)
+        }
+        Err(e) => Err(format!("Error: {:?}", e)),
+    }
+}
+
+pub fn parse_expr(input: &str) -> Result<Expr, String> {
     match tokenize(LocatedSpan::new(input)) {
         Ok((_, tokens)) => match expr(&tokens) {
             Ok((_, expr)) => Ok(expr),
@@ -158,6 +186,7 @@ pub enum Token<'a> {
     Quote(Span<'a>),
     LParen(Span<'a>),
     RParen(Span<'a>),
+
     Newline(Span<'a>),
 }
 
@@ -305,7 +334,7 @@ fn parse_list<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
         let mut elements = vec![];
         let mut rest = rest;
         while let Ok((new_rest, expr)) = expr(rest) {
-            elements.push(expr);
+            elements.push(Rc::new(expr));
             rest = new_rest;
         }
         if let Some((Token::RParen(_), rest)) = rest.split_first() {
@@ -338,7 +367,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_symbol() {
-        let result = run("hello\n");
+        let result = parse_expr("hello\n");
         assert_eq!(
             result,
             Ok(Expr::Symbol {
@@ -351,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_integer() {
-        let result = run("123\n");
+        let result = parse_expr("123\n");
         assert_eq!(
             result,
             Ok(Expr::Integer {
@@ -364,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_double() {
-        let result = run("123.456\n");
+        let result = parse_expr("123.456\n");
         assert_eq!(
             result,
             Ok(Expr::Double {
@@ -377,7 +406,7 @@ mod tests {
 
     #[test]
     fn test_expr() {
-        let result = run("(+ 1 2)\n");
+        let result = parse_expr("(+ 1 2)\n");
         assert_eq!(
             result,
             Ok(Expr::List {
@@ -397,7 +426,10 @@ mod tests {
                         location: Some(5),
                         trailing_newline: false,
                     },
-                ],
+                ]
+                .into_iter()
+                .map(Rc::new)
+                .collect(),
                 location: Some(0),
                 trailing_newline: true,
             })
@@ -406,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_quote() {
-        let result = run("'(1 2 3)\n");
+        let result = parse_expr("'(1 2 3)\n");
         assert_eq!(
             result,
             Ok(Expr::Quote {
@@ -427,13 +459,43 @@ mod tests {
                             location: Some(6),
                             trailing_newline: false,
                         },
-                    ],
+                    ]
+                    .into_iter()
+                    .map(Rc::new)
+                    .collect(),
+
                     location: Some(1),
                     trailing_newline: true,
                 }),
                 location: Some(0),
                 trailing_newline: false,
             })
+        );
+    }
+
+    #[test]
+
+    fn test_multiple_exprs() {
+        let result = parse_file("1\n2 3\n");
+        assert_eq!(
+            result,
+            Ok(vec![
+                Expr::Integer {
+                    value: 1,
+                    location: Some(0),
+                    trailing_newline: true,
+                },
+                Expr::Integer {
+                    value: 2,
+                    location: Some(2),
+                    trailing_newline: false,
+                },
+                Expr::Integer {
+                    value: 3,
+                    location: Some(4),
+                    trailing_newline: true,
+                },
+            ])
         );
     }
 }
