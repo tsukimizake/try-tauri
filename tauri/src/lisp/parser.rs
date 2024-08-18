@@ -254,7 +254,7 @@ pub enum Token<'a> {
 
 fn symbol(input: Span) -> IResult<Span, Token> {
     map(
-        take_while1(|c: char| c.is_alphanumeric() || "+-*/<>".contains(c)),
+        take_while1(|c: char| c.is_alphanumeric() || "+-*/<>#".contains(c)),
         Token::Symbol,
     )(input)
 }
@@ -457,6 +457,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_boolean() {
+        let result = parse_expr("#t\n");
+        assert_eq!(
+            result,
+            Ok(Expr::Symbol {
+                name: "#t".to_string(),
+                location: Some(0),
+                trailing_newline: true,
+            })
+        );
+    }
     #[test]
     fn test_double() {
         let result = parse_expr("123.456\n");

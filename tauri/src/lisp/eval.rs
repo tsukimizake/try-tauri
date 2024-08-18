@@ -212,7 +212,7 @@ fn prim_lessthan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
     let evaled = eval_args(args, env)?;
     match (evaled[0].as_ref(), evaled[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
-            Ok(Rc::new(Expr::integer(if a < b { 1 } else { 0 })))
+            Ok(Rc::new(Expr::symbol(if a < b { "#t" } else { "#f" })))
         }
         _ => Err("lessthan requires integer arguments".to_string()),
     }
@@ -230,8 +230,8 @@ fn prim_if(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>
     }
 
     match eval(args[0].clone(), env.clone())?.as_ref() {
-        Expr::Integer { value, .. } => {
-            if *value != 0 {
+        Expr::Symbol { name, .. } => {
+            if *name != "#f" {
                 eval(args[1].clone(), env)
             } else {
                 eval(args[2].clone(), env)
