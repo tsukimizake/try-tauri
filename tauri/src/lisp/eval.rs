@@ -39,19 +39,20 @@ fn eval_list(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
     let first = eval(elements[0].clone(), env.clone())?;
     match &*first {
         Expr::Builtin(f) => {
-            let args: Result<Vec<Rc<Expr>>, String> = elements[1..]
-                .iter()
-                .map(|arg| eval(arg.clone(), env.clone()))
-                .collect();
-            f(&args?)
+            let args = &elements[1..];
+            f(args, env)
         }
-        Expr::Clausure { args, body, env } => {
-            let newenv = Env::make_child(env.clone());
+        Expr::Clausure {
+            args,
+            body,
+            env: clausure_env,
+        } => {
+            let newenv = Env::make_child(clausure_env.clone());
             for (arg, value) in args.iter().zip(elements.iter().skip(1)) {
-                newenv
-                    .borrow_mut()
-                    .insert(arg.clone(), eval(value.clone(), env.clone())?);
+                let val = eval(value.clone(), env.clone());
+                newenv.borrow_mut().insert(arg.clone(), val?);
             }
+
             eval(body.clone(), newenv.clone())
         }
         _ => Err(format!("First element of list is not a function")),
@@ -88,7 +89,6 @@ fn eval_define(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>,
                 location: fun.location(),
                 trailing_newline: fun.has_newline(),
             });
-            println!("lambda: {:?}", lambda);
             eval_define_impl(&[define, name, lambda], env)
         }
         Some(_) => eval_define_impl(elements, env),
@@ -125,10 +125,8 @@ fn eval_define_impl(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<E
                 body,
                 env: newenv,
             });
-            env.borrow_mut().insert(
-                elements[1].as_symbol().unwrap().to_string(),
-                clausure.clone(),
-            );
+            env.borrow_mut()
+                .insert(elements[1].as_symbol()?.to_string(), clausure.clone());
             Ok(clausure)
         }
         _ => Err("define requires a symbol as an argument".to_string()),
@@ -166,13 +164,17 @@ fn eval_lambda(expr: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, Str
 
 pub fn initial_env() -> Rc<RefCell<Env>> {
     let mut env = Env::new();
-    env.insert("+".to_string(), Rc::new(Expr::Builtin(add)));
+    env.insert("+".to_string(), Rc::new(Expr::Builtin(prim_add)));
+    env.insert("-".to_string(), Rc::new(Expr::Builtin(prim_sub)));
+    env.insert("<".to_string(), Rc::new(Expr::Builtin(prim_lessthan)));
+    env.insert("if".to_string(), Rc::new(Expr::Builtin(prim_if)));
     Rc::new(RefCell::new(env))
 }
 
-fn add(args: &[Rc<Expr>]) -> Result<Rc<Expr>, String> {
+fn prim_add(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
     args.iter()
-        .try_fold(0, |acc, arg| match **arg {
+        .map(|arg| eval(arg.clone(), env.clone()).expect("add arg eval failed"))
+        .try_fold(0, |acc, arg| match *arg {
             Expr::Integer { value, .. } => Ok(acc + value),
             Expr::Double { value, .. } => Ok(acc + value as i64),
             _ => Err("add requires integer or double arguments".to_string()),
@@ -180,49 +182,150 @@ fn add(args: &[Rc<Expr>]) -> Result<Rc<Expr>, String> {
         .map(|r| Rc::new(Expr::integer(r)))
 }
 
+fn prim_sub(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    let head: Rc<Expr> = args
+        .first()
+        .ok_or("sub requires at least one argument".to_string())
+        .and_then(|x| eval(x.clone(), env.clone()))?;
+    let tail: Vec<Result<Rc<Expr>, String>> = args[1..]
+        .iter()
+        .map(|arg| eval(arg.clone(), env.clone()))
+        .collect();
+    let head = match head.as_ref() {
+        Expr::Integer { value, .. } => *value,
+        Expr::Double { value, .. } => *value as i64,
+        _ => return Err("sub requires integer or double arguments".to_string()),
+    };
+    tail.iter()
+        .try_fold(head, |acc, arg| match arg.clone()?.as_ref() {
+            Expr::Integer { value, .. } => Ok(acc - value),
+            Expr::Double { value, .. } => Ok(acc - *value as i64),
+            _ => Err("sub requires integer or double arguments".to_string()),
+        })
+        .map(|r| Rc::new(Expr::integer(r)))
+}
+
+fn prim_lessthan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    if args.len() != 2 {
+        return Err("lessthan requires two arguments".to_string());
+    }
+    let evaled = eval_args(args, env)?;
+    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+        (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
+            Ok(Rc::new(Expr::integer(if a < b { 1 } else { 0 })))
+        }
+        _ => Err("lessthan requires integer arguments".to_string()),
+    }
+}
+
+fn eval_args(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Vec<Rc<Expr>>, String> {
+    args.iter()
+        .map(|arg| eval(arg.clone(), env.clone()))
+        .collect()
+}
+
+fn prim_if(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    if args.len() != 3 {
+        return Err("if requires three arguments".to_string());
+    }
+
+    match eval(args[0].clone(), env.clone())?.as_ref() {
+        Expr::Integer { value, .. } => {
+            if *value != 0 {
+                eval(args[1].clone(), env)
+            } else {
+                eval(args[2].clone(), env)
+            }
+        }
+        _ => Err("First argument of if must be an integer".to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
     fn test_math() {
         let env = initial_env();
-
-        let expr = parser::parse_expr("(+ 1 2 3)").unwrap();
-
-        assert_eq!(eval(Rc::new(expr), env), Ok(Rc::new(Expr::integer(6))));
+        let expr = parser::parse_expr("(+ 1 2 (+ 1 3))").unwrap();
+        assert_eq!(eval(Rc::new(expr), env), Ok(Rc::new(Expr::integer(7))));
     }
 
     #[test]
     fn test_lambda() {
         let env = initial_env();
-
         let expr = parser::parse_expr("((lambda (a b) (+ a b)) 1 2)").unwrap();
-        let result = eval(Rc::new(expr), env.clone()).unwrap();
-        assert_eq!(eval(result, env), Ok(Rc::new(Expr::integer(3))));
+        let result = eval(Rc::new(expr), env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
     }
 
     #[test]
     fn test_define() {
         let env = initial_env();
         let exprs = parser::parse_file("(define a 1) a").unwrap();
-        let result = eval_exprs(exprs, env.clone()).unwrap();
-        assert_eq!(eval(result, env), Ok(Rc::new(Expr::integer(1))));
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(1))));
     }
 
     #[test]
     fn test_define_lambda1() {
         let env = initial_env();
         let exprs = parser::parse_file("(define add (lambda(a b) (+ a b))) (add 1 2)").unwrap();
-        let result = eval_exprs(exprs, env.clone()).unwrap();
-        assert_eq!(eval(result, env), Ok(Rc::new(Expr::integer(3))));
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
     }
 
     #[test]
     fn test_define_lambda2() {
         let env = initial_env();
         let exprs = parser::parse_file("(define (add a b) (+ a b)) (add 1 2)").unwrap();
-        let result = eval_exprs(exprs, env.clone()).unwrap();
-        assert_eq!(eval(result, env), Ok(Rc::new(Expr::integer(3))));
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+    }
+    #[test]
+    fn test_define_lambda3() {
+        let env = initial_env();
+        let exprs = parser::parse_file("(define (id a) a) (id 1)").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()),
+            Ok(Rc::new(Expr::integer(1)))
+        );
+    }
+    #[test]
+    fn test_if() {
+        let env = initial_env();
+        let exprs = parser::parse_file("(if (< 1 2) 2 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(2))));
+    }
+    #[test]
+    fn test_if2() {
+        let env = initial_env();
+        let exprs = parser::parse_file("(if (< 2 1) 2 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+    }
+    #[test]
+    fn test_if3() {
+        let env = initial_env();
+        let exprs = parser::parse_file("(if (< -3 1) 2 3)").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()),
+            Ok(Rc::new(Expr::integer(2)))
+        );
+    }
+
+    #[test]
+    fn test_rec() {
+        let env = initial_env();
+        let exprs = parser::parse_file(
+            "(define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))) (fib 10)",
+        )
+        .unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result, Ok(Rc::new(Expr::integer(55))));
     }
 }

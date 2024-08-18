@@ -1,8 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
 use ne::ErrorKind;
-use nom::character::complete::space0;
+use nom::combinator::opt;
 use nom::error as ne;
+use nom::{character::complete::space0, combinator::recognize};
 use std::collections::HashMap;
 
 use nom::{
@@ -21,6 +22,7 @@ use nom_locate::LocatedSpan;
 pub struct Env {
     parent: Option<Rc<RefCell<Env>>>,
     vars: HashMap<String, Rc<Expr>>,
+    depth: usize,
 }
 
 impl Env {
@@ -28,13 +30,15 @@ impl Env {
         Env {
             parent: None,
             vars: HashMap::new(),
+            depth: 0,
         }
     }
 
     pub fn make_child(parent: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
         Rc::new(RefCell::new(Env {
-            parent: Some(parent),
+            parent: Some(parent.clone()),
             vars: HashMap::new(),
+            depth: parent.borrow().depth + 1,
         }))
     }
     pub fn insert(&mut self, name: String, value: Rc<Expr>) {
@@ -76,7 +80,7 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
-    Builtin(fn(&[Rc<Expr>]) -> Result<Rc<Expr>, String>),
+    Builtin(fn(&[Rc<Expr>], Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>),
     Clausure {
         args: Vec<String>,
         body: Rc<Expr>,
@@ -256,18 +260,22 @@ fn symbol(input: Span) -> IResult<Span, Token> {
 }
 
 fn integer(input: Span) -> IResult<Span, Token> {
-    map(take_while1(|c: char| c.is_digit(10)), Token::Integer)(input)
+    map(
+        recognize(pair(opt(char('-')), take_while1(|c: char| c.is_digit(10)))),
+        |span: Span| Token::Integer(span),
+    )(input)
 }
+
 fn double(input: Span) -> IResult<Span, Token> {
     map(
-        pair(
-            take_while1(|c: char| c.is_digit(10)),
-            preceded(char('.'), take_while1(|c: char| c.is_digit(10))),
-        ),
-        |(a, b): (Span, Span)| {
-            let formatted = format!("{}.{}", a.fragment(), b.fragment());
-            Token::Double(Span::new(Box::leak(formatted.into_boxed_str())))
-        },
+        recognize(pair(
+            opt(char('-')),
+            pair(
+                take_while1(|c: char| c.is_digit(10)),
+                preceded(char('.'), take_while1(|c: char| c.is_digit(10))),
+            ),
+        )),
+        |span: Span| Token::Double(span),
     )(input)
 }
 
@@ -530,9 +538,20 @@ mod tests {
             })
         );
     }
+    #[test]
+    fn test_negative_integer() {
+        let result = parse_expr("-123\n");
+        assert_eq!(
+            result,
+            Ok(Expr::Integer {
+                value: -123,
+                location: Some(0),
+                trailing_newline: true,
+            })
+        );
+    }
 
     #[test]
-
     fn test_multiple_exprs() {
         let result = parse_file("1\n2 3\n");
         assert_eq!(
