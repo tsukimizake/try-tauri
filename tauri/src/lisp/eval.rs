@@ -11,6 +11,7 @@ pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Rc<RefCell<Env>>) -> Result<Rc<
             eval(Rc::new(expr.clone()), env.clone())
         })
 }
+
 pub fn eval(expr: Rc<Expr>, env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
     match expr.as_ref() {
         Expr::Symbol { name, .. } => env
@@ -172,32 +173,30 @@ pub fn initial_env() -> Rc<RefCell<Env>> {
 }
 
 fn prim_add(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
-    args.iter()
-        .map(|arg| eval(arg.clone(), env.clone()).expect("add arg eval failed"))
-        .try_fold(0, |acc, arg| match *arg {
+    let evaled = eval_args(args, env)?;
+    evaled
+        .iter()
+        .try_fold(0, |acc, arg| match arg.as_ref() {
             Expr::Integer { value, .. } => Ok(acc + value),
-            Expr::Double { value, .. } => Ok(acc + value as i64),
+            Expr::Double { value, .. } => Ok(acc + *value as i64),
             _ => Err("add requires integer or double arguments".to_string()),
         })
         .map(|r| Rc::new(Expr::integer(r)))
 }
 
 fn prim_sub(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
-    let head: Rc<Expr> = args
+    let evaled = eval_args(args, env)?;
+    let head = evaled
         .first()
-        .ok_or("sub requires at least one argument".to_string())
-        .and_then(|x| eval(x.clone(), env.clone()))?;
-    let tail: Vec<Result<Rc<Expr>, String>> = args[1..]
-        .iter()
-        .map(|arg| eval(arg.clone(), env.clone()))
-        .collect();
+        .ok_or("sub requires at least one argument".to_string())?;
+    let tail = &evaled[1..];
     let head = match head.as_ref() {
         Expr::Integer { value, .. } => *value,
         Expr::Double { value, .. } => *value as i64,
         _ => return Err("sub requires integer or double arguments".to_string()),
     };
     tail.iter()
-        .try_fold(head, |acc, arg| match arg.clone()?.as_ref() {
+        .try_fold(head, |acc, arg| match arg.as_ref() {
             Expr::Integer { value, .. } => Ok(acc - value),
             Expr::Double { value, .. } => Ok(acc - *value as i64),
             _ => Err("sub requires integer or double arguments".to_string()),
