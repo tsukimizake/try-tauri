@@ -1,4 +1,4 @@
-module StlDecoder exposing (Stl, Vec, decodeStl, encodeToBytes, triangleDecoder)
+module StlDecoder exposing (Stl, Vec, run)
 
 import Bindings exposing (StlBytes)
 import Bytes exposing (Bytes, Endianness(..))
@@ -32,9 +32,19 @@ type alias Stl =
     }
 
 
+run : StlBytes -> Maybe Stl
+run stlBytes =
+    stlBytes
+        |> encodeToBytes
+        |> decodeStl
+
+
 encodeToBytes : StlBytes -> Bytes
 encodeToBytes stlBytes =
-    BE.encode (BE.sequence (List.map BE.unsignedInt8 stlBytes.bytes))
+    stlBytes.bytes
+        |> List.map BE.unsignedInt8
+        |> BE.sequence
+        |> BE.encode
 
 
 decodeStl : Bytes -> Maybe Stl

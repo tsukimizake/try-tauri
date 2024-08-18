@@ -1,24 +1,20 @@
 port module Main exposing (main)
 
-import Angle
 import Bindings
 import Browser
 import Bytes exposing (Endianness(..))
-import Camera3d exposing (Camera3d)
 import Color
-import Direction3d
-import Html exposing (..)
-import Html.Attributes exposing (value)
-import Html.Events exposing (..)
+import Css.Extra exposing (..)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (..)
 import Json.Decode
-import Length exposing (Meters)
-import Pixels exposing (int)
 import Point3d
-import Scene3d as Scene exposing (backgroundColor)
+import Scene
+import Scene3d
 import Scene3d.Material as Material
-import StlDecoder exposing (Stl, Vec, decodeStl, encodeToBytes)
+import StlDecoder exposing (Stl, Vec)
 import Triangle3d
-import Viewpoint3d
 
 
 port readStlFile : () -> Cmd msg
@@ -40,7 +36,7 @@ main =
         { init = init
         , update = update
         , subscriptions = subscriptions
-        , view = view
+        , view = Html.Styled.toUnstyled << view
         }
 
 
@@ -84,8 +80,7 @@ update msg model =
                 | stl =
                     Json.Decode.decodeValue Bindings.stlBytesDecoder value
                         |> Result.toMaybe
-                        |> Maybe.map encodeToBytes
-                        |> Maybe.andThen decodeStl
+                        |> Maybe.andThen StlDecoder.run
               }
             , Cmd.none
             )
@@ -112,50 +107,20 @@ view model =
         point ( x, y, z ) =
             Point3d.meters x y z
 
-        entity : ( Vec, Vec, Vec ) -> Scene.Entity coordinates
+        entity : ( Vec, Vec, Vec ) -> Scene3d.Entity coordinates
         entity ( a, b, c ) =
             let
                 tri ( p, q, r ) =
                     Triangle3d.from (point p) (point q) (point r)
             in
-            Scene.facet (Material.color Color.blue) (tri ( a, b, c ))
+            Scene3d.facet (Material.color Color.blue) (tri ( a, b, c ))
     in
-    div []
-        [ h1 [] [ text "Read stl file" ]
-        , button [ onClick ReadStlFile ] [ text "Read stl file" ]
-        , model.stl
-            |> Maybe.map .triangles
-            |> Maybe.map
-                (\triangles ->
-                    Scene.unlit
-                        { dimensions = ( int 400, int 400 )
-                        , camera = camera model.viewPoint
-                        , clipDepth = Length.meters 1
-                        , background = backgroundColor Color.black
-                        , entities =
-                            List.map entity triangles
-                        }
-                )
-            |> Maybe.withDefault (text "")
-        , div [] [ text <| "len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
-        , div [] [ text <| "decoded: " ++ Debug.toString model.stl ]
+    div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px" ] ]
+        [ div []
+            [ model.stl
+                |> Maybe.map (Scene.unlit model entity)
+                |> Maybe.withDefault (text "")
+            , div [] [ text <| "len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
+            ]
+        , div [] [ text "text area" ]
         ]
-
-
-
-------------
--- SCENE
-------------
-
-
-camera : Vec -> Camera3d Meters coordinates
-camera ( x, y, z ) =
-    Camera3d.perspective
-        { viewpoint =
-            Viewpoint3d.lookAt
-                { eyePoint = Point3d.meters x y z
-                , focalPoint = Point3d.origin
-                , upDirection = Direction3d.positiveZ
-                }
-        , verticalFieldOfView = Angle.degrees 30
-        }

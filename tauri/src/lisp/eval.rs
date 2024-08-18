@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn test_lambda() {
         let env = initial_env();
-        let expr = parser::parse_expr("((lambda (a b) (+ a b)) 1 2)").unwrap();
+        let expr = parser::parse_expr("((lambda (a b) (+ a (- b 0))) 1 2)").unwrap();
         let result = eval(Rc::new(expr), env.clone());
         assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
     }
