@@ -1,15 +1,19 @@
 port module Main exposing (main)
 
+import Basics.Extra exposing (..)
 import Bindings
 import Browser
 import Bytes exposing (Endianness(..))
+import CodeEditor
 import Color
+import Css exposing (height, pct)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Json.Decode
 import Point3d
+import RecordSetter exposing (..)
 import Scene
 import Scene3d
 import Scene3d.Material as Material
@@ -47,12 +51,17 @@ main =
 type alias Model =
     { stl : Maybe Stl
     , viewPoint : Vec
+    , codeEditor : CodeEditor.Model
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { stl = Nothing, viewPoint = ( 50, 20, 30 ) }
+    ( { stl = Nothing
+      , viewPoint = ( 50, 20, 30 )
+      , codeEditor = CodeEditor.init
+      }
+        |> Debug.log "init"
     , readStlFile ()
     )
 
@@ -64,19 +73,20 @@ init _ =
 type Msg
     = ReadStlFile
     | TauriMsg Json.Decode.Value
+    | CodeEditorMsg CodeEditor.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg mPrev =
     case msg of
         ReadStlFile ->
-            ( model
+            ( mPrev
             , readStlFile ()
             )
 
         TauriMsg value ->
             -- TODO switch with some label
-            ( { model
+            ( { mPrev
                 | stl =
                     Json.Decode.decodeValue Bindings.stlBytesDecoder value
                         |> Result.toMaybe
@@ -84,6 +94,11 @@ update msg model =
               }
             , Cmd.none
             )
+
+        CodeEditorMsg codeEditorMsg ->
+            CodeEditor.update codeEditorMsg mPrev.codeEditor
+                |> mapModel (putIn s_codeEditor mPrev)
+                |> mapCmd CodeEditorMsg
 
 
 
@@ -115,12 +130,13 @@ view model =
             in
             Scene3d.facet (Material.color Color.blue) (tri ( a, b, c ))
     in
-    div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px" ] ]
-        [ div []
+    div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
+        [ div [ css [ height (pct 100) ] ]
             [ model.stl
                 |> Maybe.map (Scene.unlit model entity)
                 |> Maybe.withDefault (text "")
-            , div [] [ text <| "len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
+            , div [] [ text <| "stl file len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
+            , div [] [ text model.codeEditor.code ]
             ]
-        , div [] [ text "text area" ]
+        , CodeEditor.view CodeEditorMsg model.codeEditor
         ]
