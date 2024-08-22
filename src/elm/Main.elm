@@ -61,15 +61,15 @@ init _ =
 
 
 type Msg
-    = FromTauriMsg Bindings.FromTauriCmdType
-    | ToTauriMsg Bindings.ToTauriCmdType
-    | ReadCode String
+    = FromTauri Bindings.FromTauriCmdType
+    | ToTauri Bindings.ToTauriCmdType
+    | SetSourceFilePath String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg mPrev =
     case msg of
-        FromTauriMsg cmd ->
+        FromTauri cmd ->
             case cmd of
                 StlBytes stlBytes ->
                     mPrev
@@ -77,21 +77,30 @@ update msg mPrev =
                         |> noCmd
 
                 Code code ->
+                    let
+                        _ =
+                            Debug.log "Code" code
+                    in
                     mPrev
                         |> s_sourceCode code
                         |> noCmd
 
-        ToTauriMsg cmd ->
-            case cmd of
-                RequestCode path ->
-                    ( { mPrev | sourceFilePath = path }
-                    , Cmd.none
-                    )
+        ToTauri cmd ->
+            let
+                _ =
+                    Debug.log "ToTauri" cmd
+            in
+            mPrev
+                |> withCmd (TauriCmd.toTauri cmd)
 
-        ReadCode path ->
-            ( { mPrev | sourceFilePath = path }
-            , Cmd.none
-            )
+        SetSourceFilePath path ->
+            let
+                _ =
+                    Debug.log "SetSourceFilePath" path
+            in
+            mPrev
+                |> s_sourceFilePath path
+                |> noCmd
 
 
 
@@ -100,7 +109,7 @@ update msg mPrev =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    TauriCmd.fromTauri FromTauriMsg
+    TauriCmd.fromTauri FromTauri
 
 
 
@@ -130,9 +139,10 @@ view model =
             ]
         , div []
             [ text "ファイル名"
-            , input [ type_ "text", css [ fontFamily monospace ] ] []
+            , input [ type_ "text", css [ fontFamily monospace ], onInput SetSourceFilePath ] []
+            , button [ onClick (ToTauri (RequestCode model.sourceFilePath)) ] [ text "ファイルを開く" ]
             , div [] [ text "code" ]
-            , div [ css [ fontFamily monospace ] ] [ text "TODO honi" ]
+            , div [ css [ fontFamily monospace ] ] [ text model.sourceCode ]
             ]
 
         -- , CodeEditor.view CodeEditorMsg model.codeEditor

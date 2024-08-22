@@ -7,8 +7,21 @@ use data::stl::{FromTauriCmdType, ToTauriCmdType};
 use std::io::Read;
 use tauri::api::dialog::FileDialogBuilder;
 
-#[tauri::command]
-fn read_stl_file(window: tauri::Window) -> () {
+#[tauri::command(rename_all = "snake_case")]
+fn to_tauri(window: tauri::Window, args: String) -> () {
+    println!("to_tauri: {:?}", args);
+    match serde_json::from_str(&args).unwrap() {
+        ToTauriCmdType::RequestStlFile => {
+            read_stl_file(window);
+        }
+        ToTauriCmdType::RequestCode(path) => {
+            println!("path: {:?}", path);
+            read_code_file(window, &path);
+        }
+    }
+}
+
+fn read_stl_file(window: tauri::Window) {
     FileDialogBuilder::new()
         .add_filter("STL Files", &["stl"])
         .pick_file(|file_path| {
@@ -27,6 +40,16 @@ fn read_stl_file(window: tauri::Window) -> () {
                 }
             }
         })
+}
+
+fn read_code_file(window: tauri::Window, path: &str) {
+    if let Ok(code) = std::fs::read_to_string(path) {
+        window
+            .emit("tauri_msg", FromTauriCmdType::Code(code))
+            .unwrap();
+    } else {
+        println!("Failed to read code file");
+    }
 }
 
 // TODO data should be a struct with tag
@@ -54,7 +77,7 @@ fn main() {
     std::fs::write("../src/elm/Bindings.elm", output).unwrap();
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![read_stl_file, test_app_handle])
+        .invoke_handler(tauri::generate_handler![to_tauri, test_app_handle])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

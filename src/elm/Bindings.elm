@@ -29,12 +29,15 @@ resultDecoder errDecoder okDecoder =
 
 
 type ToTauriCmdType
-    = RequestCode (String)
+    = RequestStlFile
+    | RequestCode (String)
 
 
 toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
 toTauriCmdTypeEncoder enum =
     case enum of
+        RequestStlFile ->
+            Json.Encode.string "RequestStlFile"
         RequestCode inner ->
             Json.Encode.object [ ( "RequestCode", Json.Encode.string inner ) ]
 
@@ -54,7 +57,16 @@ fromTauriCmdTypeEncoder enum =
 toTauriCmdTypeDecoder : Json.Decode.Decoder ToTauriCmdType
 toTauriCmdTypeDecoder = 
     Json.Decode.oneOf
-        [ Json.Decode.map RequestCode (Json.Decode.field "RequestCode" (Json.Decode.string))
+        [ Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "RequestStlFile" ->
+                            Json.Decode.succeed RequestStlFile
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        , Json.Decode.map RequestCode (Json.Decode.field "RequestCode" (Json.Decode.string))
         ]
 
 fromTauriCmdTypeDecoder : Json.Decode.Decoder FromTauriCmdType

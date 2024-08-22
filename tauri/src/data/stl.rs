@@ -4,6 +4,7 @@ use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
 pub enum ToTauriCmdType {
+    RequestStlFile,
     RequestCode(String),
 }
 

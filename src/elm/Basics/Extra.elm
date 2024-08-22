@@ -15,6 +15,11 @@ noCmd m =
     ( m, Cmd.none )
 
 
+withCmd : Cmd msg -> model -> ( model, Cmd msg )
+withCmd cmd m =
+    ( m, cmd )
+
+
 mapCmd : (a -> b) -> ( m, Cmd a ) -> ( m, Cmd b )
 mapCmd f ( m, cmd ) =
     ( m, Cmd.map f cmd )

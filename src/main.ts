@@ -29,9 +29,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
 await listen("tauri_msg", (e) => {
   console.log(e);
-  app.ports.tauriMsg.send(e.payload);
+  app.ports.fromTauriMsg.send(e.payload);
 });
 
-app.ports.readStlFile.subscribe(async function () {
-  await invoke("read_stl_file");
+type ToTauriMsg = {
+  [key: string]: string;
+}
+
+app.ports.toTauriMsg.subscribe(async function(json: ToTauriMsg) {
+  await invoke("to_tauri", { args: JSON.stringify(json) });
 });
