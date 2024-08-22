@@ -8,7 +8,7 @@ dev:
 
 elm_new_file path:
     echo {{ path }}| path dirname | mkdir $"src/elm/($in)"
-    touch $"src/elm/{{ path }}"
+    echo {{ path }} | path split | str join "." | str substring 0..-5 | $"module ($in) exposing \(..\)\nhoge = identity" | save $"src/elm/{{ path }}"
 
 setem:
     bunx setem
@@ -16,4 +16,3 @@ setem:
 
 just_format:
     just --fmt --unstable
-

@@ -28,21 +28,39 @@ resultDecoder errDecoder okDecoder =
         ]
 
 
-type alias StlBytes =
-    { bytes : List (Int)
-    }
+type ToTauriCmdType
+    = RequestCode (String)
 
 
-stlBytesEncoder : StlBytes -> Json.Encode.Value
-stlBytesEncoder struct =
-    Json.Encode.object
-        [ ( "bytes", (Json.Encode.list (Json.Encode.int)) struct.bytes )
+toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
+toTauriCmdTypeEncoder enum =
+    case enum of
+        RequestCode inner ->
+            Json.Encode.object [ ( "RequestCode", Json.Encode.string inner ) ]
+
+type FromTauriCmdType
+    = StlBytes (List (Int))
+    | Code (String)
+
+
+fromTauriCmdTypeEncoder : FromTauriCmdType -> Json.Encode.Value
+fromTauriCmdTypeEncoder enum =
+    case enum of
+        StlBytes inner ->
+            Json.Encode.object [ ( "StlBytes", Json.Encode.list (Json.Encode.int) inner ) ]
+        Code inner ->
+            Json.Encode.object [ ( "Code", Json.Encode.string inner ) ]
+
+toTauriCmdTypeDecoder : Json.Decode.Decoder ToTauriCmdType
+toTauriCmdTypeDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.map RequestCode (Json.Decode.field "RequestCode" (Json.Decode.string))
         ]
 
-
-stlBytesDecoder : Json.Decode.Decoder StlBytes
-stlBytesDecoder =
-    Json.Decode.succeed StlBytes
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "bytes" (Json.Decode.list (Json.Decode.int))))
-
+fromTauriCmdTypeDecoder : Json.Decode.Decoder FromTauriCmdType
+fromTauriCmdTypeDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.map StlBytes (Json.Decode.field "StlBytes" (Json.Decode.list (Json.Decode.int)))
+        , Json.Decode.map Code (Json.Decode.field "Code" (Json.Decode.string))
+        ]
 

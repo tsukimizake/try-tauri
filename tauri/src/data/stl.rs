@@ -3,6 +3,12 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
-pub struct StlBytes {
-    pub bytes: Vec<u8>,
+pub enum ToTauriCmdType {
+    RequestCode(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
+pub enum FromTauriCmdType {
+    StlBytes(Vec<u8>),
+    Code(String),
 }

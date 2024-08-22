@@ -1,12 +1,17 @@
 module CodeEditor exposing (Model, Msg, init, update, view)
 
+-- カーソルが移動する、elementが空になるとエラーが出るなどの問題があるため一旦後回し
+-- https://github.com/jxxcarlson/elm-text-editor などを使う？
+
 import Basics.Extra exposing (..)
 import Bytes exposing (Endianness(..))
 import Css exposing (fontFamily, height, monospace, pct)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (contenteditable, css, spellcheck)
+import Html.Styled.Attributes exposing (contenteditable, css, id, spellcheck)
 import Html.Styled.Events exposing (..)
+import Json.Decode as Json
+import RecordSetter exposing (..)
 
 
 type alias Model =
@@ -35,7 +40,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg mPrev =
     case msg of
         UpdateCode code ->
-            { mPrev | code = code } |> noCmd
+            let
+                _ =
+                    Debug.log "UpdateCode" code
+            in
+            if code == "" then
+                mPrev |> noCmd
+
+            else
+                mPrev |> s_code code |> noCmd
 
 
 view : (Msg -> msg) -> Model -> Html msg
@@ -53,16 +66,30 @@ view tagger m =
                 [ div
                     [ contenteditable True
                     , spellcheck False
-                    , onInput UpdateCode
-                    , css [ height (pct 100) ]
+                    , onContentEditableInput UpdateCode
+                    , css
+                        [ height (pct 100)
+                        ]
+                    , id "codeEditor"
                     ]
-                    [ text m.code ]
+                    [ text <| m.code ]
                 ]
             ]
 
 
+onContentEditableInput : (String -> msg) -> Attribute msg
+onContentEditableInput tagger =
+    Html.Styled.Events.stopPropagationOn "input"
+        (innerText |> Json.map (\str -> ( tagger str, False )))
+
+
+innerText : Json.Decoder String
+innerText =
+    Json.at [ "target", "innerText" ] Json.string
+
+
 linums : Model -> Html msg
-linums _ =
+linums m =
     div
         [ css
             [ displayGrid
@@ -70,6 +97,6 @@ linums _ =
             , gridAutoRows "1em"
             ]
         ]
-        (List.range 1 100
+        (List.range 1 (getLines m.code)
             |> List.map (\n -> div [] [ text (String.fromInt n) ])
         )

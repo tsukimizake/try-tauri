@@ -3,7 +3,7 @@
 mod data;
 mod lisp;
 
-use data::stl::StlBytes;
+use data::stl::{FromTauriCmdType, ToTauriCmdType};
 use std::io::Read;
 use tauri::api::dialog::FileDialogBuilder;
 
@@ -32,7 +32,7 @@ fn read_stl_file(window: tauri::Window) -> () {
 // TODO data should be a struct with tag
 #[tauri::command]
 fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
-    match window.emit("tauri_msg", StlBytes { bytes: data }) {
+    match window.emit("tauri_msg", FromTauriCmdType::StlBytes(data)) {
         Ok(_) => println!("event sent successfully"),
         Err(e) => println!("failed to send event: {}", e),
     }
@@ -45,8 +45,8 @@ fn main() {
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!("Bindings", &mut target, {
-        encoders: [StlBytes],
-        decoders: [StlBytes],
+        encoders: [ToTauriCmdType, FromTauriCmdType],
+        decoders: [ToTauriCmdType, FromTauriCmdType],
     })
     .unwrap();
     let output = String::from_utf8(target).unwrap();

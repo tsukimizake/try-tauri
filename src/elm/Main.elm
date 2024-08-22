@@ -1,33 +1,23 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Basics.Extra exposing (..)
-import Bindings
+import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
 import Bytes exposing (Endianness(..))
-import CodeEditor
 import Color
-import Css exposing (height, pct)
+import Css exposing (fontFamily, height, monospace, pct)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes exposing (css, type_)
 import Html.Styled.Events exposing (..)
-import Json.Decode
 import Point3d
 import RecordSetter exposing (..)
 import Scene
 import Scene3d
 import Scene3d.Material as Material
 import StlDecoder exposing (Stl, Vec)
+import TauriCmd
 import Triangle3d
-
-
-port readStlFile : () -> Cmd msg
-
-
-port readStlFileResult : (String -> msg) -> Sub msg
-
-
-port tauriMsg : (Json.Decode.Value -> msg) -> Sub msg
 
 
 
@@ -51,19 +41,19 @@ main =
 type alias Model =
     { stl : Maybe Stl
     , viewPoint : Vec
-    , codeEditor : CodeEditor.Model
+    , sourceFilePath : String
+    , sourceCode : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { stl = Nothing
-      , viewPoint = ( 50, 20, 30 )
-      , codeEditor = CodeEditor.init
-      }
-        |> Debug.log "init"
-    , readStlFile ()
-    )
+    { stl = Nothing
+    , viewPoint = ( 50, 20, 30 )
+    , sourceFilePath = ""
+    , sourceCode = ""
+    }
+        |> noCmd
 
 
 
@@ -71,34 +61,37 @@ init _ =
 
 
 type Msg
-    = ReadStlFile
-    | TauriMsg Json.Decode.Value
-    | CodeEditorMsg CodeEditor.Msg
+    = FromTauriMsg Bindings.FromTauriCmdType
+    | ToTauriMsg Bindings.ToTauriCmdType
+    | ReadCode String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg mPrev =
     case msg of
-        ReadStlFile ->
-            ( mPrev
-            , readStlFile ()
-            )
+        FromTauriMsg cmd ->
+            case cmd of
+                StlBytes stlBytes ->
+                    mPrev
+                        |> s_stl (StlDecoder.run stlBytes)
+                        |> noCmd
 
-        TauriMsg value ->
-            -- TODO switch with some label
-            ( { mPrev
-                | stl =
-                    Json.Decode.decodeValue Bindings.stlBytesDecoder value
-                        |> Result.toMaybe
-                        |> Maybe.andThen StlDecoder.run
-              }
+                Code code ->
+                    mPrev
+                        |> s_sourceCode code
+                        |> noCmd
+
+        ToTauriMsg cmd ->
+            case cmd of
+                RequestCode path ->
+                    ( { mPrev | sourceFilePath = path }
+                    , Cmd.none
+                    )
+
+        ReadCode path ->
+            ( { mPrev | sourceFilePath = path }
             , Cmd.none
             )
-
-        CodeEditorMsg codeEditorMsg ->
-            CodeEditor.update codeEditorMsg mPrev.codeEditor
-                |> mapModel (putIn s_codeEditor mPrev)
-                |> mapCmd CodeEditorMsg
 
 
 
@@ -107,9 +100,7 @@ update msg mPrev =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch
-        [ tauriMsg TauriMsg
-        ]
+    TauriCmd.fromTauri FromTauriMsg
 
 
 
@@ -136,7 +127,13 @@ view model =
                 |> Maybe.map (Scene.unlit model entity)
                 |> Maybe.withDefault (text "")
             , div [] [ text <| "stl file len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
-            , div [] [ text model.codeEditor.code ]
             ]
-        , CodeEditor.view CodeEditorMsg model.codeEditor
+        , div []
+            [ text "ファイル名"
+            , input [ type_ "text", css [ fontFamily monospace ] ] []
+            , div [] [ text "code" ]
+            , div [ css [ fontFamily monospace ] ] [ text "TODO honi" ]
+            ]
+
+        -- , CodeEditor.view CodeEditorMsg model.codeEditor
         ]

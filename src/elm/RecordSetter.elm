@@ -2024,6 +2024,16 @@ s_snippets value__ record__ =
     { record__ | snippets = value__ }
 
 
+s_sourceCode : a -> { b | sourceCode : a } -> { b | sourceCode : a }
+s_sourceCode value__ record__ =
+    { record__ | sourceCode = value__ }
+
+
+s_sourceFilePath : a -> { b | sourceFilePath : a } -> { b | sourceFilePath : a }
+s_sourceFilePath value__ record__ =
+    { record__ | sourceFilePath = value__ }
+
+
 s_start : a -> { b | start : a } -> { b | start : a }
 s_start value__ record__ =
     { record__ | start = value__ }
