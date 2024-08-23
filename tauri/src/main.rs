@@ -1,9 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-mod data;
+mod elm;
 mod lisp;
 
-use data::stl::{FromTauriCmdType, ToTauriCmdType};
+use elm::{FromTauriCmdType, ToTauriCmdType};
 use std::io::Read;
 use tauri::api::dialog::FileDialogBuilder;
 
@@ -15,7 +15,6 @@ fn from_elm(window: tauri::Window, args: String) -> () {
             read_stl_file(window);
         }
         ToTauriCmdType::RequestCode(path) => {
-            println!("path: {:?}", path);
             read_code_file(window, &path);
         }
     }
@@ -33,6 +32,7 @@ fn read_stl_file(window: tauri::Window) {
 
                     let mut buf: Vec<u8> = Vec::new();
                     input.read_to_end(&mut buf).unwrap();
+
                     to_elm(window, FromTauriCmdType::StlBytes(buf));
                 }
                 None => {
