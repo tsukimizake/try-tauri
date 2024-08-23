@@ -77,27 +77,15 @@ update msg mPrev =
                         |> noCmd
 
                 Code code ->
-                    let
-                        _ =
-                            Debug.log "Code" code
-                    in
                     mPrev
                         |> s_sourceCode code
                         |> noCmd
 
         ToTauri cmd ->
-            let
-                _ =
-                    Debug.log "ToTauri" cmd
-            in
             mPrev
                 |> withCmd (TauriCmd.toTauri cmd)
 
         SetSourceFilePath path ->
-            let
-                _ =
-                    Debug.log "SetSourceFilePath" path
-            in
             mPrev
                 |> s_sourceFilePath path
                 |> noCmd

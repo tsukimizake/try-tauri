@@ -37,5 +37,5 @@ type ToTauriMsg = {
 }
 
 app.ports.toTauriMsg.subscribe(async function(json: ToTauriMsg) {
-  await invoke("to_tauri", { args: JSON.stringify(json) });
+  await invoke("from_elm", { args: JSON.stringify(json) });
 });

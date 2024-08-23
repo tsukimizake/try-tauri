@@ -8,7 +8,7 @@ use std::io::Read;
 use tauri::api::dialog::FileDialogBuilder;
 
 #[tauri::command(rename_all = "snake_case")]
-fn to_tauri(window: tauri::Window, args: String) -> () {
+fn from_elm(window: tauri::Window, args: String) -> () {
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
         ToTauriCmdType::RequestStlFile => {
@@ -33,7 +33,7 @@ fn read_stl_file(window: tauri::Window) {
 
                     let mut buf: Vec<u8> = Vec::new();
                     input.read_to_end(&mut buf).unwrap();
-                    test_app_handle(window, buf);
+                    to_elm(window, FromTauriCmdType::StlBytes(buf));
                 }
                 None => {
                     println!("User closed the dialog without selecting a file");
@@ -54,8 +54,8 @@ fn read_code_file(window: tauri::Window, path: &str) {
 
 // TODO data should be a struct with tag
 #[tauri::command]
-fn test_app_handle(window: tauri::Window, data: Vec<u8>) {
-    match window.emit("tauri_msg", FromTauriCmdType::StlBytes(data)) {
+fn to_elm(window: tauri::Window, cmd: FromTauriCmdType) {
+    match window.emit("tauri_msg", cmd) {
         Ok(_) => println!("event sent successfully"),
         Err(e) => println!("failed to send event: {}", e),
     }
@@ -77,7 +77,7 @@ fn main() {
     std::fs::write("../src/elm/Bindings.elm", output).unwrap();
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![to_tauri, test_app_handle])
+        .invoke_handler(tauri::generate_handler![from_elm, to_elm])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
