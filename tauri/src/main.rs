@@ -5,45 +5,50 @@ mod lisp;
 
 use elm::{FromTauriCmdType, ToTauriCmdType};
 use std::io::Read;
-use tauri::api::dialog::FileDialogBuilder;
+use std::sync::Mutex;
+use stl_io::IndexedMesh;
+
+#[derive(Default)]
+struct SharedState {
+    pub stl: Mutex<Option<IndexedMesh>>,
+    pub code: Mutex<String>,
+}
 
 #[tauri::command(rename_all = "snake_case")]
-fn from_elm(window: tauri::Window, args: String) -> () {
+fn from_elm(
+    window: tauri::Window,
+    state: tauri::State<SharedState>,
+    args: String,
+) -> Result<(), String> {
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
-        ToTauriCmdType::RequestStlFile => {
-            read_stl_file(window);
+        ToTauriCmdType::RequestStlFile(path) => {
+            read_stl_file(window, state, path);
+            Ok(())
         }
         ToTauriCmdType::RequestCode(path) => {
-            read_code_file(window, &path);
+            read_code_file(window, state, &path);
+            Ok(())
         }
     }
 }
 
-fn read_stl_file(window: tauri::Window) {
-    FileDialogBuilder::new()
-        .add_filter("STL Files", &["stl"])
-        .pick_file(|file_path| {
-            // do something with the optional file path here
-            // the file path is `None` if the user closed the dialog
-            match file_path {
-                Some(path) => {
-                    let mut input = std::fs::File::open(path).unwrap();
-
-                    let mut buf: Vec<u8> = Vec::new();
-                    input.read_to_end(&mut buf).unwrap();
-
-                    to_elm(window, FromTauriCmdType::StlBytes(buf));
-                }
-                None => {
-                    println!("User closed the dialog without selecting a file");
-                }
-            }
-        })
+fn read_stl_file(window: tauri::Window, state: tauri::State<SharedState>, path: String) {
+    let mut input = std::fs::File::open(path).unwrap();
+    let mut buf: Vec<u8> = Vec::new();
+    input.read_to_end(&mut buf).unwrap();
+    let stl = stl_io::read_stl(&mut std::io::Cursor::new(&buf))
+        .ok()
+        .unwrap();
+    state.stl.lock().unwrap().replace(stl);
+    to_elm(window, FromTauriCmdType::StlBytes(buf));
 }
 
-fn read_code_file(window: tauri::Window, path: &str) {
+fn read_code_file(window: tauri::Window, state: tauri::State<SharedState>, path: &str) {
     if let Ok(code) = std::fs::read_to_string(path) {
+        let mut r = state.code.lock().unwrap();
+        r.clear();
+        r.push_str(&code);
         window
             .emit("tauri_msg", FromTauriCmdType::Code(code))
             .unwrap();
@@ -77,6 +82,7 @@ fn main() {
     std::fs::write("../src/elm/Bindings.elm", output).unwrap();
 
     tauri::Builder::default()
+        .manage(SharedState::default())
         .invoke_handler(tauri::generate_handler![from_elm, to_elm])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
