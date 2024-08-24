@@ -23,7 +23,7 @@ fn from_elm(
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
         ToTauriCmdType::RequestStlFile(path) => {
-            read_stl_file(window, state, path);
+            read_stl_file(window, state, &path);
             Ok(())
         }
         ToTauriCmdType::RequestCode(path) => {
@@ -33,7 +33,7 @@ fn from_elm(
     }
 }
 
-fn read_stl_file(window: tauri::Window, state: tauri::State<SharedState>, path: String) {
+fn read_stl_file(window: tauri::Window, state: tauri::State<SharedState>, path: &str) {
     let mut input = std::fs::File::open(path).unwrap();
     let mut buf: Vec<u8> = Vec::new();
     input.read_to_end(&mut buf).unwrap();
