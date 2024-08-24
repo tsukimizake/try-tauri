@@ -49,15 +49,12 @@ fn read_code_file(window: tauri::Window, state: tauri::State<SharedState>, path:
         let mut r = state.code.lock().unwrap();
         r.clear();
         r.push_str(&code);
-        window
-            .emit("tauri_msg", FromTauriCmdType::Code(code))
-            .unwrap();
+        to_elm(window, FromTauriCmdType::Code(code));
     } else {
         println!("Failed to read code file");
     }
 }
 
-// TODO data should be a struct with tag
 #[tauri::command]
 fn to_elm(window: tauri::Window, cmd: FromTauriCmdType) {
     match window.emit("tauri_msg", cmd) {
