@@ -54,6 +54,11 @@ s_alpha value__ record__ =
     { record__ | alpha = value__ }
 
 
+s_altKey : a -> { b | altKey : a } -> { b | altKey : a }
+s_altKey value__ record__ =
+    { record__ | altKey = value__ }
+
+
 s_angle : a -> { b | angle : a } -> { b | angle : a }
 s_angle value__ record__ =
     { record__ | angle = value__ }
@@ -374,6 +379,11 @@ s_command value__ record__ =
     { record__ | command = value__ }
 
 
+s_console : a -> { b | console : a } -> { b | console : a }
+s_console value__ record__ =
+    { record__ | console = value__ }
+
+
 s_constantBaseColor : a -> { b | constantBaseColor : a } -> { b | constantBaseColor : a }
 s_constantBaseColor value__ record__ =
     { record__ | constantBaseColor = value__ }
@@ -402,6 +412,11 @@ s_content value__ record__ =
 s_css : a -> { b | css : a } -> { b | css : a }
 s_css value__ record__ =
     { record__ | css = value__ }
+
+
+s_ctrlKey : a -> { b | ctrlKey : a } -> { b | ctrlKey : a }
+s_ctrlKey value__ record__ =
+    { record__ | ctrlKey = value__ }
 
 
 s_cursor : a -> { b | cursor : a } -> { b | cursor : a }
@@ -537,6 +552,16 @@ s_elm value__ record__ =
 s_emissiveColor : a -> { b | emissiveColor : a } -> { b | emissiveColor : a }
 s_emissiveColor value__ record__ =
     { record__ | emissiveColor = value__ }
+
+
+s_emptyItem : a -> { b | emptyItem : a } -> { b | emptyItem : a }
+s_emptyItem value__ record__ =
+    { record__ | emptyItem = value__ }
+
+
+s_enabled : a -> { b | enabled : a } -> { b | enabled : a }
+s_enabled value__ record__ =
+    { record__ | enabled = value__ }
 
 
 s_enabledLights : a -> { b | enabledLights : a } -> { b | enabledLights : a }
@@ -744,6 +769,11 @@ s_fontWeight value__ record__ =
     { record__ | fontWeight = value__ }
 
 
+s_foundAny : a -> { b | foundAny : a } -> { b | foundAny : a }
+s_foundAny value__ record__ =
+    { record__ | foundAny = value__ }
+
+
 s_fourthControlPoint : a -> { b | fourthControlPoint : a } -> { b | fourthControlPoint : a }
 s_fourthControlPoint value__ record__ =
     { record__ | fourthControlPoint = value__ }
@@ -792,6 +822,11 @@ s_halfY value__ record__ =
 s_halfZ : a -> { b | halfZ : a } -> { b | halfZ : a }
 s_halfZ value__ record__ =
     { record__ | halfZ = value__ }
+
+
+s_hasFocus : a -> { b | hasFocus : a } -> { b | hasFocus : a }
+s_hasFocus value__ record__ =
+    { record__ | hasFocus = value__ }
 
 
 s_hash : a -> { b | hash : a } -> { b | hash : a }
@@ -849,6 +884,11 @@ s_hue value__ record__ =
     { record__ | hue = value__ }
 
 
+s_id : a -> { b | id : a } -> { b | id : a }
+s_id value__ record__ =
+    { record__ | id = value__ }
+
+
 s_importHistory : a -> { b | importHistory : a } -> { b | importHistory : a }
 s_importHistory value__ record__ =
     { record__ | importHistory = value__ }
@@ -887,6 +927,11 @@ s_inlineAxisOverflow value__ record__ =
 s_innerLoops : a -> { b | innerLoops : a } -> { b | innerLoops : a }
 s_innerLoops value__ record__ =
     { record__ | innerLoops = value__ }
+
+
+s_inputCharacter : a -> { b | inputCharacter : a } -> { b | inputCharacter : a }
+s_inputCharacter value__ record__ =
+    { record__ | inputCharacter = value__ }
 
 
 s_intOrAuto : a -> { b | intOrAuto : a } -> { b | intOrAuto : a }
@@ -944,6 +989,11 @@ s_isoSpeed value__ record__ =
     { record__ | isoSpeed = value__ }
 
 
+s_items : a -> { b | items : a } -> { b | items : a }
+s_items value__ record__ =
+    { record__ | items = value__ }
+
+
 s_ix : a -> { b | ix : a } -> { b | ix : a }
 s_ix value__ record__ =
     { record__ | ix = value__ }
@@ -987,6 +1037,11 @@ s_jz value__ record__ =
 s_key : a -> { b | key : a } -> { b | key : a }
 s_key value__ record__ =
     { record__ | key = value__ }
+
+
+s_keyCode : a -> { b | keyCode : a } -> { b | keyCode : a }
+s_keyCode value__ record__ =
+    { record__ | keyCode = value__ }
 
 
 s_keyframes : a -> { b | keyframes : a } -> { b | keyframes : a }
@@ -1304,9 +1359,19 @@ s_maxError value__ record__ =
     { record__ | maxError = value__ }
 
 
+s_maxLength : a -> { b | maxLength : a } -> { b | maxLength : a }
+s_maxLength value__ record__ =
+    { record__ | maxLength = value__ }
+
+
 s_maxSecondDerivativeMagnitude : a -> { b | maxSecondDerivativeMagnitude : a } -> { b | maxSecondDerivativeMagnitude : a }
 s_maxSecondDerivativeMagnitude value__ record__ =
     { record__ | maxSecondDerivativeMagnitude = value__ }
+
+
+s_maxValue : a -> { b | maxValue : a } -> { b | maxValue : a }
+s_maxValue value__ record__ =
+    { record__ | maxValue = value__ }
 
 
 s_maxX : a -> { b | maxX : a } -> { b | maxX : a }
@@ -1337,6 +1402,11 @@ s_message value__ record__ =
 s_messages : a -> { b | messages : a } -> { b | messages : a }
 s_messages value__ record__ =
     { record__ | messages = value__ }
+
+
+s_metaKey : a -> { b | metaKey : a } -> { b | metaKey : a }
+s_metaKey value__ record__ =
+    { record__ | metaKey = value__ }
 
 
 s_metadata : a -> { b | metadata : a } -> { b | metadata : a }
@@ -1372,6 +1442,11 @@ s_midpoint value__ record__ =
 s_minMaxDimension : a -> { b | minMaxDimension : a } -> { b | minMaxDimension : a }
 s_minMaxDimension value__ record__ =
     { record__ | minMaxDimension = value__ }
+
+
+s_minValue : a -> { b | minValue : a } -> { b | minValue : a }
+s_minValue value__ record__ =
+    { record__ | minValue = value__ }
 
 
 s_minX : a -> { b | minX : a } -> { b | minX : a }
@@ -1529,6 +1604,16 @@ s_number value__ record__ =
     { record__ | number = value__ }
 
 
+s_numberModel : a -> { b | numberModel : a } -> { b | numberModel : a }
+s_numberModel value__ record__ =
+    { record__ | numberModel = value__ }
+
+
+s_numberOptions : a -> { b | numberOptions : a } -> { b | numberOptions : a }
+s_numberOptions value__ record__ =
+    { record__ | numberOptions = value__ }
+
+
 s_numberOrInfinite : a -> { b | numberOrInfinite : a } -> { b | numberOrInfinite : a }
 s_numberOrInfinite value__ record__ =
     { record__ | numberOrInfinite = value__ }
@@ -1552,6 +1637,16 @@ s_offsetScale value__ record__ =
 s_oldTime : a -> { b | oldTime : a } -> { b | oldTime : a }
 s_oldTime value__ record__ =
     { record__ | oldTime = value__ }
+
+
+s_onChange : a -> { b | onChange : a } -> { b | onChange : a }
+s_onChange value__ record__ =
+    { record__ | onChange = value__ }
+
+
+s_onInput : a -> { b | onInput : a } -> { b | onInput : a }
+s_onInput value__ record__ =
+    { record__ | onInput = value__ }
 
 
 s_onUrlChange : a -> { b | onUrlChange : a } -> { b | onUrlChange : a }
@@ -1682,6 +1777,11 @@ s_params value__ record__ =
 s_path : a -> { b | path : a } -> { b | path : a }
 s_path value__ record__ =
     { record__ | path = value__ }
+
+
+s_pattern : a -> { b | pattern : a } -> { b | pattern : a }
+s_pattern value__ record__ =
+    { record__ | pattern = value__ }
 
 
 s_pids : a -> { b | pids : a } -> { b | pids : a }
@@ -1969,6 +2069,11 @@ s_seed value__ record__ =
     { record__ | seed = value__ }
 
 
+s_selected : a -> { b | selected : a } -> { b | selected : a }
+s_selected value__ record__ =
+    { record__ | selected = value__ }
+
+
 s_sent : a -> { b | sent : a } -> { b | sent : a }
 s_sent value__ record__ =
     { record__ | sent = value__ }
@@ -1987,6 +2092,11 @@ s_shadows value__ record__ =
 s_shift : a -> { b | shift : a } -> { b | shift : a }
 s_shift value__ record__ =
     { record__ | shift = value__ }
+
+
+s_shiftKey : a -> { b | shiftKey : a } -> { b | shiftKey : a }
+s_shiftKey value__ record__ =
+    { record__ | shiftKey = value__ }
 
 
 s_shutterSpeed : a -> { b | shutterSpeed : a } -> { b | shutterSpeed : a }
@@ -2164,6 +2274,11 @@ s_test value__ record__ =
     { record__ | test = value__ }
 
 
+s_text : a -> { b | text : a } -> { b | text : a }
+s_text value__ record__ =
+    { record__ | text = value__ }
+
+
 s_textDecorationLine : a -> { b | textDecorationLine : a } -> { b | textDecorationLine : a }
 s_textDecorationLine value__ record__ =
     { record__ | textDecorationLine = value__ }
@@ -2177,6 +2292,16 @@ s_textDecorationStyle value__ record__ =
 s_textIndent : a -> { b | textIndent : a } -> { b | textIndent : a }
 s_textIndent value__ record__ =
     { record__ | textIndent = value__ }
+
+
+s_textModel : a -> { b | textModel : a } -> { b | textModel : a }
+s_textModel value__ record__ =
+    { record__ | textModel = value__ }
+
+
+s_textOptions : a -> { b | textOptions : a } -> { b | textOptions : a }
+s_textOptions value__ record__ =
+    { record__ | textOptions = value__ }
 
 
 s_textOrientation : a -> { b | textOrientation : a } -> { b | textOrientation : a }
@@ -2232,6 +2357,11 @@ s_tipe value__ record__ =
 s_title : a -> { b | title : a } -> { b | title : a }
 s_title value__ record__ =
     { record__ | title = value__ }
+
+
+s_toMsg : a -> { b | toMsg : a } -> { b | toMsg : a }
+s_toMsg value__ record__ =
+    { record__ | toMsg = value__ }
 
 
 s_toneMapping : a -> { b | toneMapping : a } -> { b | toneMapping : a }
@@ -2492,6 +2622,11 @@ s_whiteSpace value__ record__ =
 s_width : a -> { b | width : a } -> { b | width : a }
 s_width value__ record__ =
     { record__ | width = value__ }
+
+
+s_without : a -> { b | without : a } -> { b | without : a }
+s_without value__ record__ =
+    { record__ | without = value__ }
 
 
 s_wrap : a -> { b | wrap : a } -> { b | wrap : a }

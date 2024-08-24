@@ -5,17 +5,19 @@ import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
 import Bytes exposing (Endianness(..))
 import Color
-import Css exposing (fontFamily, height, monospace, pct)
+import Css exposing (borderColor, borderStyle, borderWidth, fontFamily, height, monospace, padding, pct, preWrap, px, rgb, solid, whiteSpace)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css, type_)
+import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
+import Input exposing (textInput)
 import Point3d
 import RecordSetter exposing (..)
 import Scene
 import Scene3d
 import Scene3d.Material as Material
 import StlDecoder exposing (Stl, Vec)
+import Task
 import TauriCmd
 import Triangle3d
 
@@ -43,6 +45,7 @@ type alias Model =
     , viewPoint : Vec
     , sourceFilePath : String
     , sourceCode : String
+    , console : List String
     }
 
 
@@ -50,10 +53,16 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     { stl = Nothing
     , viewPoint = ( 50, 20, 30 )
-    , sourceFilePath = ""
+    , sourceFilePath = "../hoge.lisp"
     , sourceCode = ""
+    , console = []
     }
-        |> noCmd
+        |> withCmd (emit <| ToTauri (RequestCode "../hoge.lisp"))
+
+
+emit : Msg -> Cmd Msg
+emit msg =
+    Task.perform identity (Task.succeed msg)
 
 
 
@@ -77,8 +86,22 @@ update msg mPrev =
                         |> noCmd
 
                 Code code ->
+                    let
+                        _ =
+                            Debug.log "code" code
+                    in
                     mPrev
                         |> s_sourceCode code
+                        |> noCmd
+
+                EvalOk res ->
+                    mPrev
+                        |> s_console (res :: mPrev.console)
+                        |> noCmd
+
+                EvalError err ->
+                    mPrev
+                        |> s_console (err :: mPrev.console)
                         |> noCmd
 
         ToTauri cmd ->
@@ -126,12 +149,39 @@ view model =
             , div [] [ text <| "stl file len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
             ]
         , div []
-            [ text "ファイル名"
-            , input [ type_ "text", css [ fontFamily monospace ], onInput SetSourceFilePath ] []
-            , button [ onClick (ToTauri (RequestCode model.sourceFilePath)) ] [ text "ファイルを開く" ]
-            , div [] [ text "code" ]
-            , div [ css [ fontFamily monospace ] ] [ text model.sourceCode ]
-            ]
+            [ text "file path"
+            , textInput model.sourceFilePath SetSourceFilePath
+            , button [ onClick (ToTauri (RequestCode model.sourceFilePath)) ] [ text "read file" ]
+            , button [ onClick (ToTauri RequestEval) ] [ text "eval" ]
+            , p
+                [ css
+                    [ fontFamily monospace
+                    , whiteSpace preWrap
+                    , borderStyle solid
+                    , borderWidth (px 1)
+                    ]
+                ]
+                [ text model.sourceCode ]
 
-        -- , CodeEditor.view CodeEditorMsg model.codeEditor
+            -- console
+            , div
+                [ css
+                    [ fontFamily monospace
+                    , borderStyle solid
+                    , borderColor black
+                    , borderWidth (px 2)
+                    ]
+                ]
+                (model.console
+                    -- |> List.intersperse (text "")
+                    |> List.map (\line -> Html.Styled.div [ css [ padding (px 5) ] ] [ text line ])
+                )
+
+            -- , CodeEditor.view CodeEditorMsg model.codeEditor
+            ]
         ]
+
+
+black : Css.Color
+black =
+    rgb 0 0 0

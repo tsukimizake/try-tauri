@@ -80,7 +80,10 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
-    Builtin(fn(&[Rc<Expr>], Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>),
+    Builtin {
+        name: String,
+        fun: fn(&[Rc<Expr>], Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>,
+    },
     Clausure {
         args: Vec<String>,
         body: Rc<Expr>,
@@ -170,7 +173,7 @@ impl Expr {
                 location,
                 trailing_newline: b,
             },
-            Expr::Builtin(_) => self,
+            Expr::Builtin { .. } => self,
             Expr::Clausure { .. } => self,
         }
     }
@@ -191,7 +194,7 @@ impl Expr {
             Expr::Quote {
                 trailing_newline, ..
             } => *trailing_newline,
-            Expr::Builtin(_) => false,
+            Expr::Builtin { .. } => false,
             Expr::Clausure { .. } => false,
         }
     }
@@ -202,8 +205,41 @@ impl Expr {
             Expr::Integer { location, .. } => *location,
             Expr::Double { location, .. } => *location,
             Expr::Quote { location, .. } => *location,
-            Expr::Builtin(_) => None,
+            Expr::Builtin { .. } => None,
             Expr::Clausure { .. } => None,
+        }
+    }
+    pub fn format(&self) -> String {
+        match self {
+            Expr::Symbol { name, .. } => name.clone(),
+            Expr::List { elements, .. } => {
+                let mut s = "(".to_string();
+                for (i, e) in elements.iter().enumerate() {
+                    s.push_str(&e.format());
+                    if i < elements.len() - 1 {
+                        s.push(' ');
+                    }
+                }
+                s.push(')');
+                s
+            }
+            Expr::Integer { value, .. } => value.to_string(),
+            Expr::Double { value, .. } => value.to_string(),
+            Expr::Quote { expr, .. } => format!("'{}", expr.format()),
+            Expr::Builtin { name, .. } => format!("<builtin {}>", name),
+            Expr::Clausure { args, body, .. } => {
+                let mut s = "(lambda (".to_string();
+                for (i, arg) in args.iter().enumerate() {
+                    s.push_str(arg);
+                    if i < args.len() - 1 {
+                        s.push(' ');
+                    }
+                }
+                s.push_str(") ");
+                s.push_str(&body.format());
+                s.push(')');
+                s
+            }
         }
     }
 }

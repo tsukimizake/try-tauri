@@ -31,6 +31,7 @@ resultDecoder errDecoder okDecoder =
 type ToTauriCmdType
     = RequestStlFile (String)
     | RequestCode (String)
+    | RequestEval
 
 
 toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
@@ -40,10 +41,14 @@ toTauriCmdTypeEncoder enum =
             Json.Encode.object [ ( "RequestStlFile", Json.Encode.string inner ) ]
         RequestCode inner ->
             Json.Encode.object [ ( "RequestCode", Json.Encode.string inner ) ]
+        RequestEval ->
+            Json.Encode.string "RequestEval"
 
 type FromTauriCmdType
     = StlBytes (List (Int))
     | Code (String)
+    | EvalOk (String)
+    | EvalError (String)
 
 
 fromTauriCmdTypeEncoder : FromTauriCmdType -> Json.Encode.Value
@@ -53,12 +58,25 @@ fromTauriCmdTypeEncoder enum =
             Json.Encode.object [ ( "StlBytes", Json.Encode.list (Json.Encode.int) inner ) ]
         Code inner ->
             Json.Encode.object [ ( "Code", Json.Encode.string inner ) ]
+        EvalOk inner ->
+            Json.Encode.object [ ( "EvalOk", Json.Encode.string inner ) ]
+        EvalError inner ->
+            Json.Encode.object [ ( "EvalError", Json.Encode.string inner ) ]
 
 toTauriCmdTypeDecoder : Json.Decode.Decoder ToTauriCmdType
 toTauriCmdTypeDecoder = 
     Json.Decode.oneOf
         [ Json.Decode.map RequestStlFile (Json.Decode.field "RequestStlFile" (Json.Decode.string))
         , Json.Decode.map RequestCode (Json.Decode.field "RequestCode" (Json.Decode.string))
+        , Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "RequestEval" ->
+                            Json.Decode.succeed RequestEval
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
         ]
 
 fromTauriCmdTypeDecoder : Json.Decode.Decoder FromTauriCmdType
@@ -66,5 +84,7 @@ fromTauriCmdTypeDecoder =
     Json.Decode.oneOf
         [ Json.Decode.map StlBytes (Json.Decode.field "StlBytes" (Json.Decode.list (Json.Decode.int)))
         , Json.Decode.map Code (Json.Decode.field "Code" (Json.Decode.string))
+        , Json.Decode.map EvalOk (Json.Decode.field "EvalOk" (Json.Decode.string))
+        , Json.Decode.map EvalError (Json.Decode.field "EvalError" (Json.Decode.string))
         ]
 

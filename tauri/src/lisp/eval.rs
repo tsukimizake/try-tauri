@@ -22,7 +22,7 @@ pub fn eval(expr: Rc<Expr>, env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
         Expr::Double { value, .. } => Ok(Rc::new(Expr::double(*value))),
         Expr::List { elements, .. } => eval_list(&elements[..], env),
         Expr::Quote { expr, .. } => Ok(Rc::new((**expr).clone())),
-        Expr::Builtin(_) => Ok(expr),
+        Expr::Builtin { .. } => Ok(expr),
         Expr::Clausure { .. } => Ok(expr),
     }
 }
@@ -39,9 +39,9 @@ fn eval_list(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
     }
     let first = eval(elements[0].clone(), env.clone())?;
     match &*first {
-        Expr::Builtin(f) => {
+        Expr::Builtin { fun, .. } => {
             let args = &elements[1..];
-            f(args, env)
+            fun(args, env)
         }
         Expr::Clausure {
             args,
@@ -165,10 +165,55 @@ fn eval_lambda(expr: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, Str
 
 pub fn initial_env() -> Rc<RefCell<Env>> {
     let mut env = Env::new();
-    env.insert("+".to_string(), Rc::new(Expr::Builtin(prim_add)));
-    env.insert("-".to_string(), Rc::new(Expr::Builtin(prim_sub)));
-    env.insert("<".to_string(), Rc::new(Expr::Builtin(prim_lessthan)));
-    env.insert("if".to_string(), Rc::new(Expr::Builtin(prim_if)));
+    env.insert(
+        "+".to_string(),
+        Rc::new(Expr::Builtin {
+            name: "+".to_string(),
+            fun: prim_add,
+        }),
+    );
+    env.insert(
+        "-".to_string(),
+        Rc::new(Expr::Builtin {
+            name: "-".to_string(),
+            fun: prim_sub,
+        }),
+    );
+    env.insert(
+        "<".to_string(),
+        Rc::new(Expr::Builtin {
+            name: "<".to_string(),
+            fun: prim_lessthan,
+        }),
+    );
+    env.insert(
+        ">".to_string(),
+        Rc::new(Expr::Builtin {
+            name: ">".to_string(),
+            fun: prim_morethan,
+        }),
+    );
+    env.insert(
+        "<=".to_string(),
+        Rc::new(Expr::Builtin {
+            name: "<=".to_string(),
+            fun: prim_lessthanoreq,
+        }),
+    );
+    env.insert(
+        ">=".to_string(),
+        Rc::new(Expr::Builtin {
+            name: ">=".to_string(),
+            fun: prim_morethanoreq,
+        }),
+    );
+    env.insert(
+        "if".to_string(),
+        Rc::new(Expr::Builtin {
+            name: "if".to_string(),
+            fun: prim_if,
+        }),
+    );
     Rc::new(RefCell::new(env))
 }
 
@@ -217,6 +262,45 @@ fn prim_lessthan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
     }
 }
 
+fn prim_morethan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    if args.len() != 2 {
+        return Err("morethan requires two arguments".to_string());
+    }
+    let evaled = eval_args(args, env)?;
+    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+        (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
+            Ok(Rc::new(Expr::symbol(if a > b { "#t" } else { "#f" })))
+        }
+        _ => Err("morethan requires integer arguments".to_string()),
+    }
+}
+
+fn prim_lessthanoreq(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    if args.len() != 2 {
+        return Err("lessthanoreq requires two arguments".to_string());
+    }
+    let evaled = eval_args(args, env)?;
+    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+        (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
+            Ok(Rc::new(Expr::symbol(if a <= b { "#t" } else { "#f" })))
+        }
+        _ => Err("lessthanoreq requires integer arguments".to_string()),
+    }
+}
+
+fn prim_morethanoreq(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+    if args.len() != 2 {
+        return Err("morethanoreq requires two arguments".to_string());
+    }
+    let evaled = eval_args(args, env)?;
+    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+        (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
+            Ok(Rc::new(Expr::symbol(if a >= b { "#t" } else { "#f" })))
+        }
+        _ => Err("morethanoreq requires integer arguments".to_string()),
+    }
+}
+
 fn eval_args(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Vec<Rc<Expr>>, String> {
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
@@ -242,8 +326,6 @@ fn prim_if(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
 
     #[test]
@@ -284,6 +366,7 @@ mod tests {
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
     }
+
     #[test]
     fn test_define_lambda3() {
         let env = initial_env();

@@ -1,1 +1,6 @@
-(def (fix n) (if (zero? n) 1 (* n (fix (- n 1)))))
+(define (fib n)
+  (if (< n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+
+(fib 10)

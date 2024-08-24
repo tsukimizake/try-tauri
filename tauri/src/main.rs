@@ -30,6 +30,15 @@ fn from_elm(
             read_code_file(window, state, &path);
             Ok(())
         }
+        ToTauriCmdType::RequestEval => {
+            let code = state.code.lock().unwrap().clone();
+            let result = match lisp::run_file(&code) {
+                Ok(expr) => FromTauriCmdType::EvalOk(expr.format()),
+                Err(err) => FromTauriCmdType::EvalError(err),
+            };
+            to_elm(window, result);
+            Ok(())
+        }
     }
 }
 
@@ -37,9 +46,10 @@ fn read_stl_file(window: tauri::Window, state: tauri::State<SharedState>, path: 
     let mut input = std::fs::File::open(path).unwrap();
     let mut buf: Vec<u8> = Vec::new();
     input.read_to_end(&mut buf).unwrap();
-    let stl = stl_io::read_stl(&mut std::io::Cursor::new(&buf))
-        .ok()
-        .unwrap();
+    let stl = match stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
+        Ok(it) => it,
+        Err(_err) => return (),
+    };
     state.stl.lock().unwrap().replace(stl);
     to_elm(window, FromTauriCmdType::StlBytes(buf));
 }
