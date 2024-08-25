@@ -1,11 +1,12 @@
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
-mod eval;
-mod parser;
+use parser::Env;
+
+pub mod eval;
+pub mod parser;
 pub type Expr = parser::Expr;
 
-pub fn run_file(file: &str) -> Result<Rc<Expr>, String> {
-    let env = eval::initial_env();
+pub fn run_file(file: &str, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let exprs = parser::parse_file(file)?;
     eval::eval_exprs(exprs, env)
 }

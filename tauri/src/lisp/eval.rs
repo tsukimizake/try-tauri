@@ -1,35 +1,35 @@
 use crate::lisp::parser;
 use crate::lisp::parser::Env;
 use crate::lisp::parser::Expr;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
-pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     exprs
         .iter()
-        .fold(Ok(Rc::new(Expr::list(vec![]))), |_, expr| {
-            eval(Rc::new(expr.clone()), env.clone())
+        .fold(Ok(Arc::new(Expr::list(vec![]))), |_, expr| {
+            eval(Arc::new(expr.clone()), env.clone())
         })
 }
 
-pub fn eval(expr: Rc<Expr>, env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     match expr.as_ref() {
         Expr::Symbol { name, .. } => env
-            .borrow()
+            .lock()
+            .unwrap()
             .get(name)
             .ok_or_else(|| format!("Undefined symbol: {}", name)),
-        Expr::Integer { value, .. } => Ok(Rc::new(Expr::integer(*value))),
-        Expr::Double { value, .. } => Ok(Rc::new(Expr::double(*value))),
+        Expr::Integer { value, .. } => Ok(Arc::new(Expr::integer(*value))),
+        Expr::Double { value, .. } => Ok(Arc::new(Expr::double(*value))),
         Expr::List { elements, .. } => eval_list(&elements[..], env),
-        Expr::Quote { expr, .. } => Ok(Rc::new((**expr).clone())),
+        Expr::Quote { expr, .. } => Ok(Arc::new((**expr).clone())),
         Expr::Builtin { .. } => Ok(expr),
         Expr::Clausure { .. } => Ok(expr),
     }
 }
 
-fn eval_list(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if elements.is_empty() {
-        return Ok(Rc::new(Expr::list(vec![])));
+        return Ok(Arc::new(Expr::list(vec![])));
     }
     if elements[0].as_ref().is_symbol("lambda") {
         return eval_lambda(elements, env);
@@ -51,7 +51,7 @@ fn eval_list(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
             let newenv = Env::make_child(clausure_env.clone());
             for (arg, value) in args.iter().zip(elements.iter().skip(1)) {
                 let val = eval(value.clone(), env.clone());
-                newenv.borrow_mut().insert(arg.clone(), val?);
+                newenv.lock().unwrap().insert(arg.clone(), val?);
             }
 
             eval(body.clone(), newenv.clone())
@@ -63,7 +63,7 @@ fn eval_list(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, S
 // (define a 1) => (define a 1)
 // (define (add a b) (+ a b)) => (define add (lambda (a b) (+ a b)))
 // TODO: proper location and trailing_newline
-fn eval_define(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn eval_define(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     match elements.get(1).map(|x| x.as_ref()) {
         Some(Expr::List {
             elements: fn_and_args,
@@ -73,14 +73,14 @@ fn eval_define(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>,
             let name = fn_and_args[0].clone();
             let fun = elements[1].clone();
             let args = fn_and_args[1..].to_vec();
-            let lambda = Rc::new(Expr::List {
+            let lambda = Arc::new(Expr::List {
                 elements: vec![
-                    Rc::new(Expr::Symbol {
+                    Arc::new(Expr::Symbol {
                         name: "lambda".to_string(),
                         location: fun.location(),
                         trailing_newline: false,
                     }),
-                    Rc::new(Expr::List {
+                    Arc::new(Expr::List {
                         elements: args,
                         location: fun.location(),
                         trailing_newline: fun.has_newline(),
@@ -99,14 +99,14 @@ fn eval_define(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>,
 
 // (define a 1)
 // (define add (lambda (a b) (+ a b)))
-fn eval_define_impl(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if elements.len() != 3 {
         return Err("define requires two arguments".to_string());
     }
     match (elements[1].as_ref(), elements[2].clone()) {
         (Expr::Symbol { name, .. }, value) => {
             let value = eval(value, env.clone())?;
-            env.borrow_mut().insert(name.clone(), value.clone());
+            env.lock().unwrap().insert(name.clone(), value.clone());
             Ok(value)
         }
         (Expr::List { elements: args, .. }, body) => {
@@ -121,12 +121,13 @@ fn eval_define_impl(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<E
                 })
                 .collect();
 
-            let clausure = Rc::new(Expr::Clausure {
+            let clausure = Arc::new(Expr::Clausure {
                 args: argnames,
                 body,
                 env: newenv,
             });
-            env.borrow_mut()
+            env.lock()
+                .unwrap()
                 .insert(elements[1].as_symbol()?.to_string(), clausure.clone());
             Ok(clausure)
         }
@@ -135,7 +136,7 @@ fn eval_define_impl(elements: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<E
 }
 
 // (lambda (a b) (+ a b))
-fn eval_lambda(expr: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if expr.len() != 3 {
         return Err("lambda requires two arguments".to_string());
     }
@@ -152,7 +153,7 @@ fn eval_lambda(expr: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, Str
                 })
                 .collect();
 
-            Ok(Rc::new(Expr::Clausure {
+            Ok(Arc::new(Expr::Clausure {
                 args: argnames,
                 body,
                 env: newenv,
@@ -163,61 +164,61 @@ fn eval_lambda(expr: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, Str
     }
 }
 
-pub fn initial_env() -> Rc<RefCell<Env>> {
+pub fn initial_env() -> Arc<Mutex<Env>> {
     let mut env = Env::new();
     env.insert(
         "+".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: "+".to_string(),
             fun: prim_add,
         }),
     );
     env.insert(
         "-".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: "-".to_string(),
             fun: prim_sub,
         }),
     );
     env.insert(
         "<".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: "<".to_string(),
             fun: prim_lessthan,
         }),
     );
     env.insert(
         ">".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: ">".to_string(),
             fun: prim_morethan,
         }),
     );
     env.insert(
         "<=".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: "<=".to_string(),
             fun: prim_lessthanoreq,
         }),
     );
     env.insert(
         ">=".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: ">=".to_string(),
             fun: prim_morethanoreq,
         }),
     );
     env.insert(
         "if".to_string(),
-        Rc::new(Expr::Builtin {
+        Arc::new(Expr::Builtin {
             name: "if".to_string(),
             fun: prim_if,
         }),
     );
-    Rc::new(RefCell::new(env))
+    Arc::new(Mutex::new(env))
 }
 
-fn prim_add(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_add(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let evaled = eval_args(args, env)?;
     evaled
         .iter()
@@ -226,10 +227,10 @@ fn prim_add(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String
             Expr::Double { value, .. } => Ok(acc + *value as i64),
             _ => Err("add requires integer or double arguments".to_string()),
         })
-        .map(|r| Rc::new(Expr::integer(r)))
+        .map(|r| Arc::new(Expr::integer(r)))
 }
 
-fn prim_sub(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_sub(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let evaled = eval_args(args, env)?;
     let head = evaled
         .first()
@@ -246,68 +247,68 @@ fn prim_sub(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String
             Expr::Double { value, .. } => Ok(acc - *value as i64),
             _ => Err("sub requires integer or double arguments".to_string()),
         })
-        .map(|r| Rc::new(Expr::integer(r)))
+        .map(|r| Arc::new(Expr::integer(r)))
 }
 
-fn prim_lessthan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_lessthan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthan requires two arguments".to_string());
     }
     let evaled = eval_args(args, env)?;
     match (evaled[0].as_ref(), evaled[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
-            Ok(Rc::new(Expr::symbol(if a < b { "#t" } else { "#f" })))
+            Ok(Arc::new(Expr::symbol(if a < b { "#t" } else { "#f" })))
         }
         _ => Err("lessthan requires integer arguments".to_string()),
     }
 }
 
-fn prim_morethan(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_morethan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethan requires two arguments".to_string());
     }
     let evaled = eval_args(args, env)?;
     match (evaled[0].as_ref(), evaled[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
-            Ok(Rc::new(Expr::symbol(if a > b { "#t" } else { "#f" })))
+            Ok(Arc::new(Expr::symbol(if a > b { "#t" } else { "#f" })))
         }
         _ => Err("morethan requires integer arguments".to_string()),
     }
 }
 
-fn prim_lessthanoreq(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_lessthanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthanoreq requires two arguments".to_string());
     }
     let evaled = eval_args(args, env)?;
     match (evaled[0].as_ref(), evaled[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
-            Ok(Rc::new(Expr::symbol(if a <= b { "#t" } else { "#f" })))
+            Ok(Arc::new(Expr::symbol(if a <= b { "#t" } else { "#f" })))
         }
         _ => Err("lessthanoreq requires integer arguments".to_string()),
     }
 }
 
-fn prim_morethanoreq(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_morethanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethanoreq requires two arguments".to_string());
     }
     let evaled = eval_args(args, env)?;
     match (evaled[0].as_ref(), evaled[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
-            Ok(Rc::new(Expr::symbol(if a >= b { "#t" } else { "#f" })))
+            Ok(Arc::new(Expr::symbol(if a >= b { "#t" } else { "#f" })))
         }
         _ => Err("morethanoreq requires integer arguments".to_string()),
     }
 }
 
-fn eval_args(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Vec<Rc<Expr>>, String> {
+fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Expr>>, String> {
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
         .collect()
 }
 
-fn prim_if(args: &[Rc<Expr>], env: Rc<RefCell<Env>>) -> Result<Rc<Expr>, String> {
+fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 3 {
         return Err("if requires three arguments".to_string());
     }
@@ -332,15 +333,15 @@ mod tests {
     fn test_math() {
         let env = initial_env();
         let expr = parser::parse_expr("(+ 1 2 (+ 1 3))").unwrap();
-        assert_eq!(eval(Rc::new(expr), env), Ok(Rc::new(Expr::integer(7))));
+        assert_eq!(eval(Arc::new(expr), env), Ok(Arc::new(Expr::integer(7))));
     }
 
     #[test]
     fn test_lambda() {
         let env = initial_env();
         let expr = parser::parse_expr("((lambda (a b) (+ a (- b 0))) 1 2)").unwrap();
-        let result = eval(Rc::new(expr), env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+        let result = eval(Arc::new(expr), env.clone());
+        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
     }
 
     #[test]
@@ -348,7 +349,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define a 1) a").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(1))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(1))));
     }
 
     #[test]
@@ -356,7 +357,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define add (lambda(a b) (+ a b))) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
     }
 
     #[test]
@@ -364,7 +365,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define (add a b) (+ a b)) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
     }
 
     #[test]
@@ -373,7 +374,7 @@ mod tests {
         let exprs = parser::parse_file("(define (id a) a) (id 1)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()),
-            Ok(Rc::new(Expr::integer(1)))
+            Ok(Arc::new(Expr::integer(1)))
         );
     }
     #[test]
@@ -381,14 +382,14 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(if (< 1 2) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(2))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(2))));
     }
     #[test]
     fn test_if2() {
         let env = initial_env();
         let exprs = parser::parse_file("(if (< 2 1) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(3))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
     }
     #[test]
     fn test_if3() {
@@ -396,7 +397,7 @@ mod tests {
         let exprs = parser::parse_file("(if (< -3 1) 2 3)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()),
-            Ok(Rc::new(Expr::integer(2)))
+            Ok(Arc::new(Expr::integer(2)))
         );
     }
 
@@ -408,6 +409,7 @@ mod tests {
         )
         .unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Rc::new(Expr::integer(55))));
+        assert_eq!(result, Ok(Arc::new(Expr::integer(55))));
     }
 }
+

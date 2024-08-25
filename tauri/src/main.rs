@@ -5,13 +5,23 @@ mod lisp;
 
 use elm::{FromTauriCmdType, ToTauriCmdType};
 use std::io::Read;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use stl_io::IndexedMesh;
 
-#[derive(Default)]
 struct SharedState {
     pub stl: Mutex<Option<IndexedMesh>>,
     pub code: Mutex<String>,
+    pub lisp_env: Arc<Mutex<lisp::parser::Env>>,
+}
+
+impl SharedState {
+    fn default() -> Self {
+        Self {
+            stl: Mutex::new(None),
+            code: Mutex::new(String::new()),
+            lisp_env: lisp::eval::initial_env(),
+        }
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -32,7 +42,7 @@ fn from_elm(
         }
         ToTauriCmdType::RequestEval => {
             let code = state.code.lock().unwrap().clone();
-            let result = match lisp::run_file(&code) {
+            let result = match lisp::run_file(&code, state.lisp_env.clone()) {
                 Ok(expr) => FromTauriCmdType::EvalOk(expr.format()),
                 Err(err) => FromTauriCmdType::EvalError(err),
             };
@@ -74,8 +84,6 @@ fn to_elm(window: tauri::Window, cmd: FromTauriCmdType) {
 }
 
 fn main() {
-    let _expr =
-        lisp::run_file("(define (sum n) (if (< n 1) n (+ n (sum (- n 1))))) (sum 0)").unwrap();
     // the target would typically be a file
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed

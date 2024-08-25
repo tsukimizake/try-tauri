@@ -5,6 +5,7 @@ use nom::combinator::opt;
 use nom::error as ne;
 use nom::{character::complete::space0, combinator::recognize};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use nom::{
     branch::alt,
@@ -17,11 +18,10 @@ use nom::{
 };
 
 use nom_locate::LocatedSpan;
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default)]
 pub struct Env {
-    parent: Option<Rc<RefCell<Env>>>,
-    vars: HashMap<String, Rc<Expr>>,
+    parent: Option<Arc<Mutex<Env>>>,
+    vars: HashMap<String, Arc<Expr>>,
     depth: usize,
 }
 
@@ -34,26 +34,33 @@ impl Env {
         }
     }
 
-    pub fn make_child(parent: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
-        Rc::new(RefCell::new(Env {
+    pub fn make_child(parent: Arc<Mutex<Env>>) -> Arc<Mutex<Env>> {
+        Arc::new(Mutex::new(Env {
             parent: Some(parent.clone()),
             vars: HashMap::new(),
-            depth: parent.borrow().depth + 1,
+            depth: parent.lock().unwrap().depth + 1,
         }))
     }
-    pub fn insert(&mut self, name: String, value: Rc<Expr>) {
+    pub fn insert(&mut self, name: String, value: Arc<Expr>) {
         self.vars.insert(name, value);
     }
-    pub fn get(&self, name: &str) -> Option<Rc<Expr>> {
+    pub fn get(&self, name: &str) -> Option<Arc<Expr>> {
+        println!("vars: {:?}", self.vars);
         self.vars.get(name).cloned().or_else(|| {
             self.parent
                 .as_ref()
-                .and_then(|parent| parent.borrow().get(name))
+                .and_then(|parent| parent.lock().unwrap().get(name))
         })
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl PartialEq for Env {
+    fn eq(&self, other: &Self) -> bool {
+        self.vars == other.vars && self.depth == other.depth
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     Symbol {
         name: String,
@@ -61,7 +68,7 @@ pub enum Expr {
         trailing_newline: bool,
     },
     List {
-        elements: Vec<Rc<Expr>>,
+        elements: Vec<Arc<Expr>>,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -82,13 +89,102 @@ pub enum Expr {
     },
     Builtin {
         name: String,
-        fun: fn(&[Rc<Expr>], Rc<RefCell<Env>>) -> Result<Rc<Expr>, String>,
+        fun: fn(&[Arc<Expr>], Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>,
     },
     Clausure {
         args: Vec<String>,
-        body: Rc<Expr>,
-        env: Rc<RefCell<Env>>,
+        body: Arc<Expr>,
+        env: Arc<Mutex<Env>>,
     },
+}
+
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        use Expr::*;
+        match (self, other) {
+            (
+                Symbol {
+                    name: n1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Symbol {
+                    name: n2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => n1 == n2 && loc1 == loc2 && tn1 == tn2,
+
+            (
+                List {
+                    elements: e1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                List {
+                    elements: e2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
+
+            (
+                Integer {
+                    value: v1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Integer {
+                    value: v2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => v1 == v2 && loc1 == loc2 && tn1 == tn2,
+
+            (
+                Double {
+                    value: v1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Double {
+                    value: v2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => v1 == v2 && loc1 == loc2 && tn1 == tn2,
+
+            (
+                Quote {
+                    expr: e1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Quote {
+                    expr: e2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
+
+            (Builtin { name: n1, .. }, Builtin { name: n2, .. }) => n1 == n2,
+
+            (
+                Clausure {
+                    args: a1,
+                    body: b1,
+                    env: e1,
+                },
+                Clausure {
+                    args: a2,
+                    body: b2,
+                    env: e2,
+                },
+            ) => a1 == a2 && b1 == b2 && Arc::ptr_eq(e1, e2),
+
+            _ => false,
+        }
+    }
 }
 
 impl Expr {
@@ -113,7 +209,7 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    pub fn list(elements: Vec<Rc<Expr>>) -> Self {
+    pub fn list(elements: Vec<Arc<Expr>>) -> Self {
         Expr::List {
             elements,
             location: None,
@@ -436,7 +532,7 @@ fn parse_list<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
         let mut elements = vec![];
         let mut rest = rest;
         while let Ok((new_rest, expr)) = expr(rest) {
-            elements.push(Rc::new(expr));
+            elements.push(Arc::new(expr));
             rest = new_rest;
         }
         if let Some((Token::RParen(_), rest)) = rest.split_first() {
@@ -542,7 +638,7 @@ mod tests {
                     },
                 ]
                 .into_iter()
-                .map(Rc::new)
+                .map(Arc::new)
                 .collect(),
                 location: Some(0),
                 trailing_newline: true,
@@ -575,7 +671,7 @@ mod tests {
                         },
                     ]
                     .into_iter()
-                    .map(Rc::new)
+                    .map(Arc::new)
                     .collect(),
 
                     location: Some(1),
