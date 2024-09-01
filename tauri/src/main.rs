@@ -11,14 +11,14 @@ use stl_io::IndexedMesh;
 struct SharedState {
     pub stl: Mutex<Option<IndexedMesh>>,
     pub code: Mutex<String>,
-    pub lisp_env: Arc<Mutex<lisp::parser::Env>>,
+    pub lisp_env: Arc<Mutex<lisp::env::Env>>,
 }
 
 impl SharedState {
     fn default() -> Self {
         Self {
-            stl: Mutex::new(None),
-            code: Mutex::new(String::new()),
+            stl: Mutex::default(),
+            code: Mutex::default(),
             lisp_env: lisp::eval::initial_env(),
         }
     }

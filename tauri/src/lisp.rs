@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use parser::Env;
+use env::Env;
 
+pub mod env;
 pub mod eval;
 pub mod parser;
 pub type Expr = parser::Expr;

@@ -1,5 +1,5 @@
+use crate::lisp::env::Env;
 use crate::lisp::parser;
-use crate::lisp::parser::Env;
 use crate::lisp::parser::Expr;
 use std::sync::{Arc, Mutex};
 
@@ -412,4 +412,3 @@ mod tests {
         assert_eq!(result, Ok(Arc::new(Expr::integer(55))));
     }
 }
-
