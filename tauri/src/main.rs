@@ -4,23 +4,53 @@ mod elm;
 mod lisp;
 
 use elm::{FromTauriCmdType, ToTauriCmdType};
+use lisp::eval::assert_arg_count;
+use lisp::Expr;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
-use stl_io::IndexedMesh;
 
 struct SharedState {
-    pub stl: Mutex<Option<IndexedMesh>>,
     pub code: Mutex<String>,
     pub lisp_env: Arc<Mutex<lisp::env::Env>>,
 }
 
 impl SharedState {
     fn default() -> Self {
+        let lisp_env = lisp::eval::initial_env();
+        lisp_env.lock().unwrap().insert(
+            "load_stl".to_string(),
+            Arc::new(Expr::Builtin {
+                name: "load_stl".to_string(),
+                fun: prim_load_stl,
+            }),
+        );
+
         Self {
-            stl: Mutex::default(),
             code: Mutex::default(),
-            lisp_env: lisp::eval::initial_env(),
+            lisp_env,
         }
+    }
+}
+
+fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
+    if let Err(e) = assert_arg_count(args, 1) {
+        return Err(e);
+    }
+    match args[0].as_ref() {
+        Expr::String { value: path, .. } => {
+            if let Some(buf) = read_stl_file(&path) {
+                if let Ok(mesh) = stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
+                    let stl = Arc::new(Expr::stl(Arc::new(mesh)));
+                    env.lock().unwrap().insert("stl".to_string(), stl.clone());
+                    Ok(stl)
+                } else {
+                    Err("load_stl: failed to parse stl".to_string())
+                }
+            } else {
+                Err("load_stl: failed to read file".to_string())
+            }
+        }
+        _ => Err("load_stl: expected string".to_string()),
     }
 }
 
@@ -34,10 +64,7 @@ fn from_elm(
     match serde_json::from_str(&args).unwrap() {
         ToTauriCmdType::RequestStlFile(path) => {
             if let Some(buf) = read_stl_file(&path) {
-                if let Ok(mesh) = stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
-                    state.stl.lock().unwrap().replace(mesh);
-                    to_elm(window, FromTauriCmdType::StlBytes(buf));
-                }
+                to_elm(window, FromTauriCmdType::StlBytes(buf));
             }
             Ok(())
         }

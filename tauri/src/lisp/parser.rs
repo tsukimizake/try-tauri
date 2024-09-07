@@ -36,8 +36,18 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
+    String {
+        value: String,
+        location: Option<usize>,
+        trailing_newline: bool,
+    },
     Double {
         value: f64,
+        location: Option<usize>,
+        trailing_newline: bool,
+    },
+    Stl {
+        value: Arc<stl_io::IndexedMesh>,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -168,6 +178,20 @@ impl Expr {
             trailing_newline: false,
         }
     }
+    pub fn string(value: String) -> Self {
+        Expr::String {
+            value,
+            location: None,
+            trailing_newline: false,
+        }
+    }
+    pub fn stl(value: Arc<stl_io::IndexedMesh>) -> Self {
+        Expr::Stl {
+            value,
+            location: None,
+            trailing_newline: false,
+        }
+    }
     pub fn list(elements: Vec<Arc<Expr>>) -> Self {
         Expr::List {
             elements,
@@ -223,6 +247,20 @@ impl Expr {
                 location,
                 trailing_newline: b,
             },
+            Expr::String {
+                value, location, ..
+            } => Expr::String {
+                value,
+                location,
+                trailing_newline: b,
+            },
+            Expr::Stl {
+                value, location, ..
+            } => Expr::Stl {
+                value,
+                location,
+                trailing_newline: b,
+            },
             Expr::Quote { expr, location, .. } => Expr::Quote {
                 expr,
                 location,
@@ -246,6 +284,12 @@ impl Expr {
             Expr::Double {
                 trailing_newline, ..
             } => *trailing_newline,
+            Expr::String {
+                trailing_newline, ..
+            } => *trailing_newline,
+            Expr::Stl {
+                trailing_newline, ..
+            } => *trailing_newline,
             Expr::Quote {
                 trailing_newline, ..
             } => *trailing_newline,
@@ -259,6 +303,8 @@ impl Expr {
             Expr::List { location, .. } => *location,
             Expr::Integer { location, .. } => *location,
             Expr::Double { location, .. } => *location,
+            Expr::String { location, .. } => *location,
+            Expr::Stl { location, .. } => *location,
             Expr::Quote { location, .. } => *location,
             Expr::Builtin { .. } => None,
             Expr::Clausure { .. } => None,
@@ -280,6 +326,10 @@ impl Expr {
             }
             Expr::Integer { value, .. } => value.to_string(),
             Expr::Double { value, .. } => value.to_string(),
+            Expr::String { value, .. } => format!("\"{}\"", value),
+            Expr::Stl { location, .. } => {
+                format!("<stl mesh at {}>", location.unwrap())
+            }
             Expr::Quote { expr, .. } => format!("'{}", expr.format()),
             Expr::Builtin { name, .. } => format!("<builtin {}>", name),
             Expr::Clausure { args, body, .. } => {

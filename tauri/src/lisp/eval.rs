@@ -21,6 +21,8 @@ pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
         Expr::Integer { value, .. } => Ok(Arc::new(Expr::integer(*value))),
         Expr::Double { value, .. } => Ok(Arc::new(Expr::double(*value))),
         Expr::List { elements, .. } => eval_list(&elements[..], env),
+        Expr::String { value, .. } => Ok(Arc::new(Expr::string(value.clone()))),
+        Expr::Stl { value, .. } => Ok(Arc::new(Expr::stl(value.clone()))),
         Expr::Quote { expr, .. } => Ok(Arc::new((**expr).clone())),
         Expr::Builtin { .. } => Ok(expr),
         Expr::Clausure { .. } => Ok(expr),
@@ -302,6 +304,12 @@ fn prim_morethanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Exp
     }
 }
 
+pub fn assert_arg_count(args: &[Arc<Expr>], count: usize) -> Result<(), String> {
+    if args.len() != count {
+        return Err(format!("expected {} arguments, got {}", count, args.len()));
+    }
+    Ok(())
+}
 fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Expr>>, String> {
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
