@@ -38,7 +38,7 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
     }
     match args[0].as_ref() {
         Expr::String { value: path, .. } => {
-            if let Some(buf) = read_stl_file(&path) {
+            if let Ok(buf) = read_stl_file(&path) {
                 if let Ok(mesh) = stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
                     let stl = Arc::new(Expr::stl(Arc::new(mesh)));
                     env.lock().unwrap().insert("stl".to_string(), stl.clone());
@@ -63,7 +63,7 @@ fn from_elm(
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
         ToTauriCmdType::RequestStlFile(path) => {
-            if let Some(buf) = read_stl_file(&path) {
+            if let Ok(buf) = read_stl_file(&path) {
                 to_elm(window, FromTauriCmdType::StlBytes(buf));
             }
             Ok(())
@@ -84,11 +84,11 @@ fn from_elm(
     }
 }
 
-fn read_stl_file(path: &str) -> Option<Vec<u8>> {
-    let mut input = std::fs::File::open(path).unwrap();
+fn read_stl_file(path: &str) -> Result<Vec<u8>, String> {
+    let mut input = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let mut buf: Vec<u8> = Vec::new();
     input.read_to_end(&mut buf).unwrap();
-    Some(buf)
+    Ok(buf)
 }
 
 fn read_code_file(window: tauri::Window, state: tauri::State<SharedState>, path: &str) {

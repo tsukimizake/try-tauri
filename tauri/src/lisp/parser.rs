@@ -124,6 +124,31 @@ impl PartialEq for Expr {
             ) => v1 == v2 && loc1 == loc2 && tn1 == tn2,
 
             (
+                String {
+                    value: v1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                String {
+                    value: v2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => v1 == v2 && loc1 == loc2 && tn1 == tn2,
+
+            (
+                Stl {
+                    value: v1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Stl {
+                    value: v2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => Arc::ptr_eq(v1, v2) && loc1 == loc2 && tn1 == tn2,
+            (
                 Quote {
                     expr: e1,
                     location: loc1,
@@ -199,6 +224,8 @@ impl Expr {
             trailing_newline: false,
         }
     }
+
+    #[allow(dead_code)]
     pub fn quote(expr: Expr) -> Self {
         Expr::Quote {
             expr: Box::new(expr),
@@ -328,7 +355,7 @@ impl Expr {
             Expr::Double { value, .. } => value.to_string(),
             Expr::String { value, .. } => format!("\"{}\"", value),
             Expr::Stl { location, .. } => {
-                format!("<stl mesh at {}>", location.unwrap())
+                format!("<stl mesh at {}>", location.unwrap_or_default())
             }
             Expr::Quote { expr, .. } => format!("'{}", expr.format()),
             Expr::Builtin { name, .. } => format!("<builtin {}>", name),
@@ -369,6 +396,7 @@ pub fn parse_file(input: &str) -> Result<Vec<Expr>, String> {
     }
 }
 
+#[allow(dead_code)]
 pub fn parse_expr(input: &str) -> Result<Expr, String> {
     match tokenize(LocatedSpan::new(input)) {
         Ok((_, tokens)) => match expr(&tokens) {
@@ -387,15 +415,15 @@ pub enum Token<'a> {
     Integer(Span<'a>),
     Double(Span<'a>),
     Quote(Span<'a>),
+    String(Span<'a>),
     LParen(Span<'a>),
     RParen(Span<'a>),
-
     Newline(Span<'a>),
 }
 
 fn symbol(input: Span) -> IResult<Span, Token> {
     map(
-        take_while1(|c: char| c.is_alphanumeric() || "+-*/<>#".contains(c)),
+        take_while1(|c: char| c.is_alphanumeric() || "_+-*/<>#".contains(c)),
         Token::Symbol,
     )(input)
 }
@@ -420,6 +448,14 @@ fn double(input: Span) -> IResult<Span, Token> {
     )(input)
 }
 
+fn string(input: Span) -> IResult<Span, Token> {
+    println!("string: {:?}", input);
+    map(
+        delimited(char('"'), take_while1(|c: char| c != '"'), char('"')),
+        Token::String,
+    )(input)
+}
+
 fn quote(input: Span) -> IResult<Span, Token> {
     map(char('\''), |_| Token::Quote(input))(input)
 }
@@ -439,7 +475,9 @@ fn newline(input: Span) -> IResult<Span, Token> {
 fn tokenize(input: Span) -> IResult<Span, Vec<Token>> {
     many0(delimited(
         space0,
-        alt((double, integer, symbol, quote, lparen, rparen, newline)),
+        alt((
+            string, double, integer, symbol, quote, lparen, rparen, newline,
+        )),
         space0,
     ))(input)
 }
@@ -456,6 +494,7 @@ mod tokenize_tests {
 fn expr<'a>(tokens: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
     tuple((
         alt((
+            parse_string,
             parse_double,
             parse_integer,
             parse_symbol,
@@ -509,6 +548,21 @@ fn parse_double<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
             rest,
             Expr::Double {
                 value: span.fragment().parse().unwrap(),
+                location: Some(span.location_offset()),
+                trailing_newline: false,
+            },
+        ))
+    } else {
+        Err(nom::Err::Error(ne::Error::new(input, ErrorKind::Tag)))
+    }
+}
+
+fn parse_string<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
+    if let Some((Token::String(span), rest)) = input.split_first() {
+        Ok((
+            rest,
+            Expr::String {
+                value: span.fragment().to_string(),
                 location: Some(span.location_offset()),
                 trailing_newline: false,
             },
@@ -605,6 +659,44 @@ mod tests {
             result,
             Ok(Expr::Symbol {
                 name: "#t".to_string(),
+                location: Some(0),
+                trailing_newline: true,
+            })
+        );
+    }
+    #[test]
+    fn test_string1() {
+        let result = parse_expr("\"hello\"\n");
+        assert_eq!(
+            result,
+            Ok(Expr::String {
+                value: "hello".to_string(),
+                location: Some(1),
+                trailing_newline: true,
+            })
+        );
+    }
+    // [LParen(LocatedSpan { offset: 0, line: 1, fragment: \"(load_expr \\\"hello\\\")\\n\", extra: () }),
+    // Symbol(LocatedSpan { offset: 1, line: 1, fragment: \"load\", extra: () })]
+
+    #[test]
+    fn test_string2() {
+        let result = parse_expr("(load_expr \"hello\")\n");
+        assert_eq!(
+            result,
+            Ok(Expr::List {
+                elements: vec![
+                    Arc::new(Expr::Symbol {
+                        name: "load_expr".to_string(),
+                        location: Some(1),
+                        trailing_newline: false,
+                    }),
+                    Arc::new(Expr::String {
+                        value: "hello".to_string(),
+                        location: Some(12),
+                        trailing_newline: false,
+                    }),
+                ],
                 location: Some(0),
                 trailing_newline: true,
             })
