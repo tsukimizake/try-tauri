@@ -30,7 +30,6 @@ impl Env {
         self.vars.insert(name, value);
     }
     pub fn get(&self, name: &str) -> Option<Arc<Expr>> {
-        println!("vars: {:?}", self.vars);
         self.vars.get(name).cloned().or_else(|| {
             self.parent
                 .as_ref()
