@@ -38,11 +38,11 @@ toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
 toTauriCmdTypeEncoder enum =
     case enum of
         RequestStlFile inner ->
-            Json.Encode.object [ ( "RequestStlFile", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "RequestStlFile"), ( "c", Json.Encode.string inner ) ]
         RequestCode inner ->
-            Json.Encode.object [ ( "RequestCode", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "RequestCode"), ( "c", Json.Encode.string inner ) ]
         RequestEval ->
-            Json.Encode.string "RequestEval"
+            Json.Encode.object [ ( "t", Json.Encode.string "RequestEval" ) ]
 
 type FromTauriCmdType
     = StlBytes (List (Int))
@@ -55,36 +55,45 @@ fromTauriCmdTypeEncoder : FromTauriCmdType -> Json.Encode.Value
 fromTauriCmdTypeEncoder enum =
     case enum of
         StlBytes inner ->
-            Json.Encode.object [ ( "StlBytes", Json.Encode.list (Json.Encode.int) inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "StlBytes"), ( "c", Json.Encode.list (Json.Encode.int) inner ) ]
         Code inner ->
-            Json.Encode.object [ ( "Code", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "Code"), ( "c", Json.Encode.string inner ) ]
         EvalOk inner ->
-            Json.Encode.object [ ( "EvalOk", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "EvalOk"), ( "c", Json.Encode.string inner ) ]
         EvalError inner ->
-            Json.Encode.object [ ( "EvalError", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "EvalError"), ( "c", Json.Encode.string inner ) ]
 
 toTauriCmdTypeDecoder : Json.Decode.Decoder ToTauriCmdType
 toTauriCmdTypeDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.map RequestStlFile (Json.Decode.field "RequestStlFile" (Json.Decode.string))
-        , Json.Decode.map RequestCode (Json.Decode.field "RequestCode" (Json.Decode.string))
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "RequestEval" ->
-                            Json.Decode.succeed RequestEval
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        ]
+    Json.Decode.field "t" Json.Decode.string
+        |> Json.Decode.andThen
+            (\tag ->
+                case tag of
+                    "RequestStlFile" ->
+                        Json.Decode.map RequestStlFile (Json.Decode.field "c" (Json.Decode.string))
+                    "RequestCode" ->
+                        Json.Decode.map RequestCode (Json.Decode.field "c" (Json.Decode.string))
+                    "RequestEval" ->
+                        Json.Decode.succeed RequestEval
+                    unexpected ->
+                        Json.Decode.fail <| "Unexpected variant " ++ unexpected
+            )
 
 fromTauriCmdTypeDecoder : Json.Decode.Decoder FromTauriCmdType
 fromTauriCmdTypeDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.map StlBytes (Json.Decode.field "StlBytes" (Json.Decode.list (Json.Decode.int)))
-        , Json.Decode.map Code (Json.Decode.field "Code" (Json.Decode.string))
-        , Json.Decode.map EvalOk (Json.Decode.field "EvalOk" (Json.Decode.string))
-        , Json.Decode.map EvalError (Json.Decode.field "EvalError" (Json.Decode.string))
-        ]
+    Json.Decode.field "t" Json.Decode.string
+        |> Json.Decode.andThen
+            (\tag ->
+                case tag of
+                    "StlBytes" ->
+                        Json.Decode.map StlBytes (Json.Decode.field "c" (Json.Decode.list (Json.Decode.int)))
+                    "Code" ->
+                        Json.Decode.map Code (Json.Decode.field "c" (Json.Decode.string))
+                    "EvalOk" ->
+                        Json.Decode.map EvalOk (Json.Decode.field "c" (Json.Decode.string))
+                    "EvalError" ->
+                        Json.Decode.map EvalError (Json.Decode.field "c" (Json.Decode.string))
+                    unexpected ->
+                        Json.Decode.fail <| "Unexpected variant " ++ unexpected
+            )
 

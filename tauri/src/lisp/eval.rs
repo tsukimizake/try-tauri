@@ -22,7 +22,7 @@ pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
         Expr::Double { value, .. } => Ok(Arc::new(Expr::double(*value))),
         Expr::List { elements, .. } => eval_list(&elements[..], env),
         Expr::String { value, .. } => Ok(Arc::new(Expr::string(value.clone()))),
-        Expr::Stl { value, .. } => Ok(Arc::new(Expr::stl(value.clone()))),
+        Expr::Stl { id, .. } => Ok(Arc::new(Expr::stl(*id))),
         Expr::Quote { expr, .. } => Ok(Arc::new((**expr).clone())),
         Expr::Builtin { .. } => Ok(expr),
         Expr::Clausure { .. } => Ok(expr),

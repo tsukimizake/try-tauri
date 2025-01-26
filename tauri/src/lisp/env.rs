@@ -1,13 +1,28 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use super::Expr;
+
+pub type StlId = usize;
+
+#[derive(Debug, Clone)]
+pub struct StlObj {
+    pub mesh: Arc<stl_io::IndexedMesh>,
+}
+
+static COUNTER: AtomicUsize = AtomicUsize::new(1);
+
+pub fn gen_id() -> usize {
+    COUNTER.fetch_add(1, Ordering::Relaxed)
+}
 
 #[derive(Debug)]
 pub struct Env {
     parent: Option<Arc<Mutex<Env>>>,
     vars: HashMap<String, Arc<Expr>>,
     depth: usize,
+    stls: HashMap<StlId, StlObj>,
 }
 
 impl Env {
@@ -16,6 +31,7 @@ impl Env {
             parent: None,
             vars: HashMap::new(),
             depth: 0,
+            stls: HashMap::new(),
         }
     }
 
@@ -24,6 +40,7 @@ impl Env {
             parent: Some(parent.clone()),
             vars: HashMap::new(),
             depth: parent.lock().unwrap().depth + 1,
+            stls: HashMap::new(),
         }))
     }
     pub fn insert(&mut self, name: String, value: Arc<Expr>) {
@@ -34,6 +51,22 @@ impl Env {
             self.parent
                 .as_ref()
                 .and_then(|parent| parent.lock().unwrap().get(name))
+        })
+    }
+
+    pub fn insert_stl(&mut self, mesh: Arc<stl_io::IndexedMesh>) -> StlId {
+        let id = gen_id();
+        self.stls.insert(id, StlObj { mesh });
+        id
+    }
+
+    pub fn get_stl(&self, id: StlId) -> Option<Arc<StlObj>> {
+        self.stls.get(&id).map(|obj| Arc::new(StlObj {
+            mesh: obj.mesh.clone(),
+        })).or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.lock().unwrap().get_stl(id))
         })
     }
 }

@@ -17,7 +17,7 @@ use nom::{
 
 use nom_locate::LocatedSpan;
 
-use super::env::Env;
+use super::env::{Env, StlId};
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -47,7 +47,7 @@ pub enum Expr {
         trailing_newline: bool,
     },
     Stl {
-        value: Arc<stl_io::IndexedMesh>,
+        id: StlId,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -138,16 +138,16 @@ impl PartialEq for Expr {
 
             (
                 Stl {
-                    value: v1,
+                    id: id1,
                     location: loc1,
                     trailing_newline: tn1,
                 },
                 Stl {
-                    value: v2,
+                    id: id2,
                     location: loc2,
                     trailing_newline: tn2,
                 },
-            ) => Arc::ptr_eq(v1, v2) && loc1 == loc2 && tn1 == tn2,
+            ) => id1 == id2 && loc1 == loc2 && tn1 == tn2,
             (
                 Quote {
                     expr: e1,
@@ -210,9 +210,9 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    pub fn stl(value: Arc<stl_io::IndexedMesh>) -> Self {
+    pub fn stl(id: StlId) -> Self {
         Expr::Stl {
-            value,
+            id,
             location: None,
             trailing_newline: false,
         }
@@ -223,6 +223,10 @@ impl Expr {
             location: None,
             trailing_newline: false,
         }
+    }
+
+    pub fn nil() -> Self {
+        Expr::list(vec![])
     }
 
     #[allow(dead_code)]
@@ -281,10 +285,8 @@ impl Expr {
                 location,
                 trailing_newline: b,
             },
-            Expr::Stl {
-                value, location, ..
-            } => Expr::Stl {
-                value,
+            Expr::Stl { id, location, .. } => Expr::Stl {
+                id,
                 location,
                 trailing_newline: b,
             },

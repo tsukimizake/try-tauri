@@ -24,6 +24,13 @@ impl SharedState {
                 fun: prim_load_stl,
             }),
         );
+        lisp_env.lock().unwrap().insert(
+            "preview".to_string(),
+            Arc::new(Expr::Builtin {
+                name: "preview".to_string(),
+                fun: prim_preview,
+            }),
+        );
 
         Self {
             code: Mutex::default(),
@@ -40,7 +47,9 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
         Expr::String { value: path, .. } => {
             if let Ok(buf) = read_stl_file(&path) {
                 if let Ok(mesh) = stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
-                    let stl = Arc::new(Expr::stl(Arc::new(mesh)));
+                    let stl_obj = Arc::new(mesh);
+                    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
+                    let stl = Arc::new(Expr::stl(stl_id));
                     env.lock().unwrap().insert("stl".to_string(), stl.clone());
                     Ok(stl)
                 } else {
@@ -51,6 +60,19 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
             }
         }
         _ => Err("load_stl: expected string".to_string()),
+    }
+}
+
+fn prim_preview(args: &[Arc<Expr>], _env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
+    if let Err(e) = assert_arg_count(args, 1) {
+        return Err(e);
+    }
+    match args[0].as_ref() {
+        Expr::Stl { id, .. } => {
+            // TODO add to preview_list in env
+            Ok(args[0].clone())
+        }
+        _ => Err("preview: expected stl".to_string()),
     }
 }
 

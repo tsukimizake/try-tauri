@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
+#[serde(tag = "t", content = "c")]
 pub enum ToTauriCmdType {
     RequestStlFile(String),
     RequestCode(String),
@@ -10,6 +11,7 @@ pub enum ToTauriCmdType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
+#[serde(tag = "t", content = "c")]
 pub enum FromTauriCmdType {
     StlBytes(Vec<u8>),
     Code(String),
