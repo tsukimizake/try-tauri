@@ -63,13 +63,13 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
     }
 }
 
-fn prim_preview(args: &[Arc<Expr>], _env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
+fn prim_preview(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
     if let Err(e) = assert_arg_count(args, 1) {
         return Err(e);
     }
     match args[0].as_ref() {
         Expr::Stl { id, .. } => {
-            // TODO add to preview_list in env
+            env.lock().unwrap().insert_preview_list(*id);
             Ok(args[0].clone())
         }
         _ => Err("preview: expected stl".to_string()),

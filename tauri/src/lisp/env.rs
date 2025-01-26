@@ -23,6 +23,7 @@ pub struct Env {
     vars: HashMap<String, Arc<Expr>>,
     depth: usize,
     stls: HashMap<StlId, StlObj>,
+    preview_list: Vec<StlId>,
 }
 
 impl Env {
@@ -32,6 +33,7 @@ impl Env {
             vars: HashMap::new(),
             depth: 0,
             stls: HashMap::new(),
+            preview_list: Vec::new(),
         }
     }
 
@@ -41,6 +43,7 @@ impl Env {
             vars: HashMap::new(),
             depth: parent.lock().unwrap().depth + 1,
             stls: HashMap::new(),
+            preview_list: Vec::new(),
         }))
     }
     pub fn insert(&mut self, name: String, value: Arc<Expr>) {
@@ -61,13 +64,21 @@ impl Env {
     }
 
     pub fn get_stl(&self, id: StlId) -> Option<Arc<StlObj>> {
-        self.stls.get(&id).map(|obj| Arc::new(StlObj {
-            mesh: obj.mesh.clone(),
-        })).or_else(|| {
-            self.parent
-                .as_ref()
-                .and_then(|parent| parent.lock().unwrap().get_stl(id))
-        })
+        self.stls
+            .get(&id)
+            .map(|obj| {
+                Arc::new(StlObj {
+                    mesh: obj.mesh.clone(),
+                })
+            })
+            .or_else(|| {
+                self.parent
+                    .as_ref()
+                    .and_then(|parent| parent.lock().unwrap().get_stl(id))
+            })
+    }
+    pub fn insert_preview_list(&mut self, id: StlId) {
+        self.preview_list.push(id);
     }
 }
 
