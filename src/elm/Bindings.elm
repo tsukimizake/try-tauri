@@ -43,7 +43,7 @@ toTauriCmdTypeEncoder enum =
 
 type FromTauriCmdType
     = Code (String)
-    | EvalOk (String)
+    | EvalOk (Evaled)
     | EvalError (String)
 
 
@@ -53,9 +53,134 @@ fromTauriCmdTypeEncoder enum =
         Code inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "Code"), ( "c", Json.Encode.string inner ) ]
         EvalOk inner ->
-            Json.Encode.object [ ( "t", Json.Encode.string "EvalOk"), ( "c", Json.Encode.string inner ) ]
+            Json.Encode.object [ ( "t", Json.Encode.string "EvalOk"), ( "c", evaledEncoder inner ) ]
         EvalError inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "EvalError"), ( "c", Json.Encode.string inner ) ]
+
+type alias SerdeVector =
+    { coords : List (Float)
+    }
+
+
+serdeVectorEncoder : SerdeVector -> Json.Encode.Value
+serdeVectorEncoder struct =
+    Json.Encode.object
+        [ ( "coords", (Json.Encode.list (Json.Encode.float)) struct.coords )
+        ]
+
+
+type SerdeVertex
+    = SerdeVertex (SerdeVector)
+
+
+serdeVertexEncoder : SerdeVertex -> Json.Encode.Value
+serdeVertexEncoder (SerdeVertex inner) =
+    (serdeVectorEncoder) inner
+
+
+type SerdeNormal
+    = SerdeNormal (SerdeVector)
+
+
+serdeNormalEncoder : SerdeNormal -> Json.Encode.Value
+serdeNormalEncoder (SerdeNormal inner) =
+    (serdeVectorEncoder) inner
+
+
+type alias SerdeTriangle =
+    { normal : SerdeNormal
+    , vertices : List (SerdeVertex)
+    }
+
+
+serdeTriangleEncoder : SerdeTriangle -> Json.Encode.Value
+serdeTriangleEncoder struct =
+    Json.Encode.object
+        [ ( "normal", (serdeNormalEncoder) struct.normal )
+        , ( "vertices", (Json.Encode.list (serdeVertexEncoder)) struct.vertices )
+        ]
+
+
+type alias SerdeIndexedTriangle =
+    { normal : SerdeVector
+    , vertices : List (Int)
+    }
+
+
+serdeIndexedTriangleEncoder : SerdeIndexedTriangle -> Json.Encode.Value
+serdeIndexedTriangleEncoder struct =
+    Json.Encode.object
+        [ ( "normal", (serdeVectorEncoder) struct.normal )
+        , ( "vertices", (Json.Encode.list (Json.Encode.int)) struct.vertices )
+        ]
+
+
+type alias Evaled =
+    { value : Value
+    , stls : List (( Int, StlObjSerde ))
+    , previews : List (Int)
+    }
+
+
+evaledEncoder : Evaled -> Json.Encode.Value
+evaledEncoder struct =
+    Json.Encode.object
+        [ ( "value", (valueEncoder) struct.value )
+        , ( "stls", (Json.Encode.list (\( a, b) -> Json.Encode.list identity [ Json.Encode.int a, stlObjSerdeEncoder b ])) struct.stls )
+        , ( "previews", (Json.Encode.list (Json.Encode.int)) struct.previews )
+        ]
+
+
+type Value
+    = Integer (Int)
+    | Double (Float)
+    | Stl (Int)
+    | String (String)
+    | Symbol (String)
+    | List (List (Value))
+
+
+valueEncoder : Value -> Json.Encode.Value
+valueEncoder enum =
+    case enum of
+        Integer inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "Integer"), ( "c", Json.Encode.int inner ) ]
+        Double inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "Double"), ( "c", Json.Encode.float inner ) ]
+        Stl inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "Stl"), ( "c", Json.Encode.int inner ) ]
+        String inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "String"), ( "c", Json.Encode.string inner ) ]
+        Symbol inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "Symbol"), ( "c", Json.Encode.string inner ) ]
+        List inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "List"), ( "c", Json.Encode.list (valueEncoder) inner ) ]
+
+type alias StlObjSerde =
+    { mesh : SerdeIndexedMesh
+    }
+
+
+stlObjSerdeEncoder : StlObjSerde -> Json.Encode.Value
+stlObjSerdeEncoder struct =
+    Json.Encode.object
+        [ ( "mesh", (serdeIndexedMeshEncoder) struct.mesh )
+        ]
+
+
+type alias SerdeIndexedMesh =
+    { vertices : List (SerdeVector)
+    , faces : List (SerdeIndexedTriangle)
+    }
+
+
+serdeIndexedMeshEncoder : SerdeIndexedMesh -> Json.Encode.Value
+serdeIndexedMeshEncoder struct =
+    Json.Encode.object
+        [ ( "vertices", (Json.Encode.list (serdeVectorEncoder)) struct.vertices )
+        , ( "faces", (Json.Encode.list (serdeIndexedTriangleEncoder)) struct.faces )
+        ]
+
 
 toTauriCmdTypeDecoder : Json.Decode.Decoder ToTauriCmdType
 toTauriCmdTypeDecoder = 
@@ -80,10 +205,83 @@ fromTauriCmdTypeDecoder =
                     "Code" ->
                         Json.Decode.map Code (Json.Decode.field "c" (Json.Decode.string))
                     "EvalOk" ->
-                        Json.Decode.map EvalOk (Json.Decode.field "c" (Json.Decode.string))
+                        Json.Decode.map EvalOk (Json.Decode.field "c" (evaledDecoder))
                     "EvalError" ->
                         Json.Decode.map EvalError (Json.Decode.field "c" (Json.Decode.string))
                     unexpected ->
                         Json.Decode.fail <| "Unexpected variant " ++ unexpected
             )
+
+serdeVectorDecoder : Json.Decode.Decoder SerdeVector
+serdeVectorDecoder =
+    Json.Decode.succeed SerdeVector
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "coords" (Json.Decode.list (Json.Decode.float))))
+
+
+serdeVertexDecoder : Json.Decode.Decoder SerdeVertex
+serdeVertexDecoder =
+    Json.Decode.map SerdeVertex (serdeVectorDecoder)
+
+
+serdeNormalDecoder : Json.Decode.Decoder SerdeNormal
+serdeNormalDecoder =
+    Json.Decode.map SerdeNormal (serdeVectorDecoder)
+
+
+serdeTriangleDecoder : Json.Decode.Decoder SerdeTriangle
+serdeTriangleDecoder =
+    Json.Decode.succeed SerdeTriangle
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "normal" (serdeNormalDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "vertices" (Json.Decode.list (serdeVertexDecoder))))
+
+
+serdeIndexedTriangleDecoder : Json.Decode.Decoder SerdeIndexedTriangle
+serdeIndexedTriangleDecoder =
+    Json.Decode.succeed SerdeIndexedTriangle
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "normal" (serdeVectorDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "vertices" (Json.Decode.list (Json.Decode.int))))
+
+
+evaledDecoder : Json.Decode.Decoder Evaled
+evaledDecoder =
+    Json.Decode.succeed Evaled
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "value" (valueDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "stls" (Json.Decode.list (Json.Decode.map2 (\a b -> ( a, b )) (Json.Decode.index 0 (Json.Decode.int)) (Json.Decode.index 1 (stlObjSerdeDecoder))))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "previews" (Json.Decode.list (Json.Decode.int))))
+
+
+valueDecoder : Json.Decode.Decoder Value
+valueDecoder = 
+    Json.Decode.field "t" Json.Decode.string
+        |> Json.Decode.andThen
+            (\tag ->
+                case tag of
+                    "Integer" ->
+                        Json.Decode.map Integer (Json.Decode.field "c" (Json.Decode.int))
+                    "Double" ->
+                        Json.Decode.map Double (Json.Decode.field "c" (Json.Decode.float))
+                    "Stl" ->
+                        Json.Decode.map Stl (Json.Decode.field "c" (Json.Decode.int))
+                    "String" ->
+                        Json.Decode.map String (Json.Decode.field "c" (Json.Decode.string))
+                    "Symbol" ->
+                        Json.Decode.map Symbol (Json.Decode.field "c" (Json.Decode.string))
+                    "List" ->
+                        Json.Decode.map List (Json.Decode.field "c" (Json.Decode.list (valueDecoder)))
+                    unexpected ->
+                        Json.Decode.fail <| "Unexpected variant " ++ unexpected
+            )
+
+stlObjSerdeDecoder : Json.Decode.Decoder StlObjSerde
+stlObjSerdeDecoder =
+    Json.Decode.succeed StlObjSerde
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "mesh" (serdeIndexedMeshDecoder)))
+
+
+serdeIndexedMeshDecoder : Json.Decode.Decoder SerdeIndexedMesh
+serdeIndexedMeshDecoder =
+    Json.Decode.succeed SerdeIndexedMesh
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "vertices" (Json.Decode.list (serdeVectorDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "faces" (Json.Decode.list (serdeIndexedTriangleDecoder))))
+
 

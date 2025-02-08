@@ -3,12 +3,23 @@ use crate::lisp::parser;
 use crate::lisp::parser::Expr;
 use std::sync::{Arc, Mutex};
 
-pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    exprs
+use super::Evaled;
+
+pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Evaled>, String> {
+    let evaled_expr = exprs
         .iter()
         .fold(Ok(Arc::new(Expr::list(vec![]))), |_, expr| {
             eval(Arc::new(expr.clone()), env.clone())
+        });
+    let stls = env.lock().unwrap().stls();
+    let previews = env.lock().unwrap().preview_list();
+    evaled_expr.map(|expr| {
+        Arc::new(Evaled {
+            value: parser::cast_evaled(expr),
+            stls,
+            previews,
         })
+    })
 }
 
 pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
@@ -335,6 +346,8 @@ fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
 
 #[cfg(test)]
 mod tests {
+    use crate::lisp::Value;
+
     use super::*;
 
     #[test]
@@ -357,7 +370,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define a 1) a").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(1))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(1)));
     }
 
     #[test]
@@ -365,7 +378,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define add (lambda(a b) (+ a b))) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
 
     #[test]
@@ -373,7 +386,7 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define (add a b) (+ a b)) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
 
     #[test]
@@ -381,8 +394,8 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(define (id a) a) (id 1)").unwrap();
         assert_eq!(
-            eval_exprs(exprs, env.clone()),
-            Ok(Arc::new(Expr::integer(1)))
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(1))
         );
     }
     #[test]
@@ -390,22 +403,22 @@ mod tests {
         let env = initial_env();
         let exprs = parser::parse_file("(if (< 1 2) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(2))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(2)));
     }
     #[test]
     fn test_if2() {
         let env = initial_env();
         let exprs = parser::parse_file("(if (< 2 1) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
     #[test]
     fn test_if3() {
         let env = initial_env();
         let exprs = parser::parse_file("(if (< -3 1) 2 3)").unwrap();
         assert_eq!(
-            eval_exprs(exprs, env.clone()),
-            Ok(Arc::new(Expr::integer(2)))
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(2))
         );
     }
 
@@ -417,6 +430,6 @@ mod tests {
         )
         .unwrap();
         let result = eval_exprs(exprs, env.clone());
-        assert_eq!(result, Ok(Arc::new(Expr::integer(55))));
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(55)));
     }
 }

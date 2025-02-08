@@ -1,12 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use elm_rs::{Elm, ElmDecode, ElmEncode};
 use ne::ErrorKind;
 use nom::combinator::opt;
 use nom::error as ne;
 use nom::{character::complete::space0, combinator::recognize};
-use serde::Deserialize;
-use serde::Serialize;
 
 use nom::{
     branch::alt,
@@ -20,19 +17,9 @@ use nom::{
 
 use nom_locate::LocatedSpan;
 
+pub type Value = super::super::elm::Value;
+
 use super::env::{Env, StlId};
-
-#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
-#[serde(tag = "t", content = "c")]
-pub enum Value {
-    Integer(i64),
-    Double(f64),
-    Stl(StlId),
-    String(String),
-    Symbol(String),
-    List(Vec<Value>),
-}
-
 pub fn cast_evaled(expr: Arc<Expr>) -> Value {
     match expr.as_ref() {
         Expr::Integer { value, .. } => Value::Integer(*value),
@@ -482,7 +469,6 @@ fn double(input: Span) -> IResult<Span, Token> {
 }
 
 fn string(input: Span) -> IResult<Span, Token> {
-    println!("string: {:?}", input);
     map(
         delimited(char('"'), take_while1(|c: char| c != '"'), char('"')),
         Token::String,

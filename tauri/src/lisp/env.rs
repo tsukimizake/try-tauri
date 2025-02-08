@@ -1,6 +1,11 @@
+use elm_rs::{Elm, ElmDecode, ElmEncode};
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+
+use super::super::elm::*;
 
 use super::Expr;
 
@@ -9,6 +14,19 @@ pub type StlId = usize;
 #[derive(Debug, Clone)]
 pub struct StlObj {
     pub mesh: Arc<stl_io::IndexedMesh>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
+pub struct StlObjSerde {
+    pub mesh: SerdeIndexedMesh,
+}
+
+impl From<&StlObj> for StlObjSerde {
+    fn from(obj: &StlObj) -> Self {
+        StlObjSerde {
+            mesh: (&*obj.mesh).into(),
+        }
+    }
 }
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -79,6 +97,17 @@ impl Env {
     }
     pub fn insert_preview_list(&mut self, id: StlId) {
         self.preview_list.push(id);
+    }
+
+    pub fn stls(&self) -> Vec<(StlId, StlObjSerde)> {
+        self.stls
+            .iter()
+            .map(|(id, obj)| (*id, obj.into()))
+            .collect()
+    }
+
+    pub fn preview_list(&self) -> Vec<StlId> {
+        self.preview_list.clone()
     }
 }
 

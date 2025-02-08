@@ -97,7 +97,7 @@ fn from_elm(
         ToTauriCmdType::RequestEval => {
             let code = state.code.lock().unwrap().clone();
             let result = match lisp::run_file(&code, state.lisp_env.clone()) {
-                Ok(val) => FromTauriCmdType::EvalOk(val),
+                Ok(val) => FromTauriCmdType::EvalOk(val.into()),
                 Err(err) => FromTauriCmdType::EvalError(err),
             };
             to_elm(window, result);
@@ -137,10 +137,37 @@ fn main() {
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!("Bindings", &mut target, {
-        encoders: [ToTauriCmdType, FromTauriCmdType],
-        decoders: [ToTauriCmdType, FromTauriCmdType],
+        encoders: [
+            ToTauriCmdType, 
+            FromTauriCmdType,
+            elm::SerdeVector, 
+            elm::SerdeVertex, 
+            elm::SerdeNormal, 
+            elm::SerdeTriangle, 
+            elm::SerdeIndexedTriangle,
+            elm::Evaled,
+            elm::Value,
+            crate::lisp::env::StlObjSerde,
+            elm::SerdeIndexedMesh
+
+
+        ],
+        decoders: [
+            ToTauriCmdType, 
+            FromTauriCmdType,
+            elm::SerdeVector, 
+            elm::SerdeVertex, 
+            elm::SerdeNormal, 
+            elm::SerdeTriangle, 
+            elm::SerdeIndexedTriangle,
+            elm::Evaled,
+            elm::Value,
+            crate::lisp::env::StlObjSerde,
+            elm::SerdeIndexedMesh
+        ],
     })
     .unwrap();
+
     let output = String::from_utf8(target).unwrap();
 
     std::fs::write("../src/elm/Bindings.elm", output).unwrap();
