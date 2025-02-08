@@ -80,11 +80,10 @@ update msg mPrev =
     case msg of
         FromTauri cmd ->
             case cmd of
-                StlBytes stlBytes ->
-                    mPrev
-                        |> s_stl (StlDecoder.run stlBytes)
-                        |> noCmd
-
+                -- StlBytes stlBytes ->
+                --     mPrev
+                --         |> s_stl (StlDecoder.run stlBytes)
+                --         |> noCmd
                 Code code ->
                     let
                         _ =

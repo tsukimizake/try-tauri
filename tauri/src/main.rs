@@ -84,12 +84,12 @@ fn from_elm(
 ) -> Result<(), String> {
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
-        ToTauriCmdType::RequestStlFile(path) => {
-            if let Ok(buf) = read_stl_file(&path) {
-                to_elm(window, FromTauriCmdType::StlBytes(buf));
-            }
-            Ok(())
-        }
+        // ToTauriCmdType::RequestStlFile(path) => {
+        //     if let Ok(buf) = read_stl_file(&path) {
+        //         to_elm(window, FromTauriCmdType::StlBytes(buf));
+        //     }
+        //     Ok(())
+        // }
         ToTauriCmdType::RequestCode(path) => {
             read_code_file(window, state, &path);
             Ok(())
@@ -97,7 +97,7 @@ fn from_elm(
         ToTauriCmdType::RequestEval => {
             let code = state.code.lock().unwrap().clone();
             let result = match lisp::run_file(&code, state.lisp_env.clone()) {
-                Ok(expr) => FromTauriCmdType::EvalOk(expr.format()),
+                Ok(val) => FromTauriCmdType::EvalOk(val),
                 Err(err) => FromTauriCmdType::EvalError(err),
             };
             to_elm(window, result);

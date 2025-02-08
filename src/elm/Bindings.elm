@@ -29,24 +29,20 @@ resultDecoder errDecoder okDecoder =
 
 
 type ToTauriCmdType
-    = RequestStlFile (String)
-    | RequestCode (String)
+    = RequestCode (String)
     | RequestEval
 
 
 toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
 toTauriCmdTypeEncoder enum =
     case enum of
-        RequestStlFile inner ->
-            Json.Encode.object [ ( "t", Json.Encode.string "RequestStlFile"), ( "c", Json.Encode.string inner ) ]
         RequestCode inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "RequestCode"), ( "c", Json.Encode.string inner ) ]
         RequestEval ->
             Json.Encode.object [ ( "t", Json.Encode.string "RequestEval" ) ]
 
 type FromTauriCmdType
-    = StlBytes (List (Int))
-    | Code (String)
+    = Code (String)
     | EvalOk (String)
     | EvalError (String)
 
@@ -54,8 +50,6 @@ type FromTauriCmdType
 fromTauriCmdTypeEncoder : FromTauriCmdType -> Json.Encode.Value
 fromTauriCmdTypeEncoder enum =
     case enum of
-        StlBytes inner ->
-            Json.Encode.object [ ( "t", Json.Encode.string "StlBytes"), ( "c", Json.Encode.list (Json.Encode.int) inner ) ]
         Code inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "Code"), ( "c", Json.Encode.string inner ) ]
         EvalOk inner ->
@@ -69,8 +63,6 @@ toTauriCmdTypeDecoder =
         |> Json.Decode.andThen
             (\tag ->
                 case tag of
-                    "RequestStlFile" ->
-                        Json.Decode.map RequestStlFile (Json.Decode.field "c" (Json.Decode.string))
                     "RequestCode" ->
                         Json.Decode.map RequestCode (Json.Decode.field "c" (Json.Decode.string))
                     "RequestEval" ->
@@ -85,8 +77,6 @@ fromTauriCmdTypeDecoder =
         |> Json.Decode.andThen
             (\tag ->
                 case tag of
-                    "StlBytes" ->
-                        Json.Decode.map StlBytes (Json.Decode.field "c" (Json.Decode.list (Json.Decode.int)))
                     "Code" ->
                         Json.Decode.map Code (Json.Decode.field "c" (Json.Decode.string))
                     "EvalOk" ->

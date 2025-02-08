@@ -1,9 +1,12 @@
 use std::sync::{Arc, Mutex};
 
+use elm_rs::{Elm, ElmDecode, ElmEncode};
 use ne::ErrorKind;
 use nom::combinator::opt;
 use nom::error as ne;
 use nom::{character::complete::space0, combinator::recognize};
+use serde::Deserialize;
+use serde::Serialize;
 
 use nom::{
     branch::alt,
@@ -18,6 +21,34 @@ use nom::{
 use nom_locate::LocatedSpan;
 
 use super::env::{Env, StlId};
+
+#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
+#[serde(tag = "t", content = "c")]
+pub enum Value {
+    Integer(i64),
+    Double(f64),
+    Stl(StlId),
+    String(String),
+    Symbol(String),
+    List(Vec<Value>),
+}
+
+pub fn cast_evaled(expr: Arc<Expr>) -> Value {
+    match expr.as_ref() {
+        Expr::Integer { value, .. } => Value::Integer(*value),
+        Expr::Double { value, .. } => Value::Double(*value),
+        Expr::Stl { id, .. } => Value::Stl(*id),
+        Expr::String { value, .. } => Value::String(value.clone()),
+        Expr::Symbol { name, .. } => Value::Symbol(name.clone()),
+        Expr::List { elements, .. } => Value::List(
+            elements
+                .iter()
+                .map(|e| cast_evaled(e.clone().try_into().unwrap()))
+                .collect(),
+        ),
+        _ => panic!("cast_evaled: unexpected expr"),
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Expr {
