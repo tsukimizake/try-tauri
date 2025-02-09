@@ -57,16 +57,13 @@ fromTauriCmdTypeEncoder enum =
         EvalError inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "EvalError"), ( "c", Json.Encode.string inner ) ]
 
-type alias SerdeVector =
-    { coords : List (Float)
-    }
+type SerdeVector
+    = SerdeVector (List (Float))
 
 
 serdeVectorEncoder : SerdeVector -> Json.Encode.Value
-serdeVectorEncoder struct =
-    Json.Encode.object
-        [ ( "coords", (Json.Encode.list (Json.Encode.float)) struct.coords )
-        ]
+serdeVectorEncoder (SerdeVector inner) =
+    (Json.Encode.list (Json.Encode.float)) inner
 
 
 type SerdeVertex
@@ -87,31 +84,27 @@ serdeNormalEncoder (SerdeNormal inner) =
     (serdeVectorEncoder) inner
 
 
-type alias SerdeTriangle =
-    { normal : SerdeNormal
-    , vertices : List (SerdeVertex)
-    }
+type SerdeTriangle
+    = SerdeTriangle (SerdeNormal) (List (SerdeVertex))
 
 
 serdeTriangleEncoder : SerdeTriangle -> Json.Encode.Value
-serdeTriangleEncoder struct =
-    Json.Encode.object
-        [ ( "normal", (serdeNormalEncoder) struct.normal )
-        , ( "vertices", (Json.Encode.list (serdeVertexEncoder)) struct.vertices )
+serdeTriangleEncoder (SerdeTriangle t0 t1) =
+    Json.Encode.list identity
+        [ (serdeNormalEncoder) t0
+        , (Json.Encode.list (serdeVertexEncoder)) t1
         ]
 
 
-type alias SerdeIndexedTriangle =
-    { normal : SerdeVector
-    , vertices : List (Int)
-    }
+type SerdeIndexedTriangle
+    = SerdeIndexedTriangle (SerdeVector) (List (Int))
 
 
 serdeIndexedTriangleEncoder : SerdeIndexedTriangle -> Json.Encode.Value
-serdeIndexedTriangleEncoder struct =
-    Json.Encode.object
-        [ ( "normal", (serdeVectorEncoder) struct.normal )
-        , ( "vertices", (Json.Encode.list (Json.Encode.int)) struct.vertices )
+serdeIndexedTriangleEncoder (SerdeIndexedTriangle t0 t1) =
+    Json.Encode.list identity
+        [ (serdeVectorEncoder) t0
+        , (Json.Encode.list (Json.Encode.int)) t1
         ]
 
 
@@ -214,8 +207,7 @@ fromTauriCmdTypeDecoder =
 
 serdeVectorDecoder : Json.Decode.Decoder SerdeVector
 serdeVectorDecoder =
-    Json.Decode.succeed SerdeVector
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "coords" (Json.Decode.list (Json.Decode.float))))
+    Json.Decode.map SerdeVector (Json.Decode.list (Json.Decode.float))
 
 
 serdeVertexDecoder : Json.Decode.Decoder SerdeVertex
@@ -231,15 +223,15 @@ serdeNormalDecoder =
 serdeTriangleDecoder : Json.Decode.Decoder SerdeTriangle
 serdeTriangleDecoder =
     Json.Decode.succeed SerdeTriangle
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "normal" (serdeNormalDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "vertices" (Json.Decode.list (serdeVertexDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.index 0 (serdeNormalDecoder) |> Json.Decode.map x)
+        |> Json.Decode.andThen (\x -> Json.Decode.index 1 (Json.Decode.list (serdeVertexDecoder)) |> Json.Decode.map x)
 
 
 serdeIndexedTriangleDecoder : Json.Decode.Decoder SerdeIndexedTriangle
 serdeIndexedTriangleDecoder =
     Json.Decode.succeed SerdeIndexedTriangle
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "normal" (serdeVectorDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "vertices" (Json.Decode.list (Json.Decode.int))))
+        |> Json.Decode.andThen (\x -> Json.Decode.index 0 (serdeVectorDecoder) |> Json.Decode.map x)
+        |> Json.Decode.andThen (\x -> Json.Decode.index 1 (Json.Decode.list (Json.Decode.int)) |> Json.Decode.map x)
 
 
 evaledDecoder : Json.Decode.Decoder Evaled

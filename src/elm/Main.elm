@@ -95,7 +95,7 @@ update msg mPrev =
 
                 EvalOk res ->
                     mPrev
-                        |> s_console (res :: mPrev.console)
+                        |> s_console ("TODO" :: mPrev.console)
                         |> noCmd
 
                 EvalError err ->

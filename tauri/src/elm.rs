@@ -50,15 +50,11 @@ impl From<Arc<Evaled>> for Evaled {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct SerdeVector {
-    pub coords: [f32; 3],
-}
+pub struct SerdeVector(pub [f32; 3]);
 
 impl From<&Vector<f32>> for SerdeVector {
     fn from(v: &Vector<f32>) -> Self {
-        SerdeVector {
-            coords: (*v).into(),
-        }
+        SerdeVector((*v).into())
     }
 }
 
@@ -81,36 +77,30 @@ impl From<&Normal> for SerdeNormal {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct SerdeTriangle {
-    pub normal: SerdeNormal,
-    pub vertices: [SerdeVertex; 3],
-}
+pub struct SerdeTriangle(pub SerdeNormal, pub [SerdeVertex; 3]);
 
 impl From<&Triangle> for SerdeTriangle {
     fn from(t: &Triangle) -> Self {
-        SerdeTriangle {
-            normal: SerdeNormal::from(&t.normal),
-            vertices: [
+        SerdeTriangle(
+            SerdeNormal::from(&t.normal),
+            [
                 SerdeVertex::from(&t.vertices[0]),
                 SerdeVertex::from(&t.vertices[1]),
                 SerdeVertex::from(&t.vertices[2]),
-            ],
-        }
+            ]
+        )
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct SerdeIndexedTriangle {
-    pub normal: SerdeVector,
-    pub vertices: [usize; 3],
-}
+pub struct SerdeIndexedTriangle(pub SerdeVector, pub [usize; 3]);
 
 impl From<&IndexedTriangle> for SerdeIndexedTriangle {
     fn from(triangle: &IndexedTriangle) -> Self {
-        SerdeIndexedTriangle {
-            normal: (&triangle.normal).into(),
-            vertices: triangle.vertices,
-        }
+        SerdeIndexedTriangle(
+            (&triangle.normal).into(),
+            triangle.vertices
+        )
     }
 }
 

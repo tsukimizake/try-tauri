@@ -138,27 +138,25 @@ fn main() {
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!("Bindings", &mut target, {
         encoders: [
-            ToTauriCmdType, 
+            ToTauriCmdType,
             FromTauriCmdType,
-            elm::SerdeVector, 
-            elm::SerdeVertex, 
-            elm::SerdeNormal, 
-            elm::SerdeTriangle, 
+            elm::SerdeVector,
+            elm::SerdeVertex,
+            elm::SerdeNormal,
+            elm::SerdeTriangle,
             elm::SerdeIndexedTriangle,
             elm::Evaled,
             elm::Value,
             crate::lisp::env::StlObjSerde,
             elm::SerdeIndexedMesh
-
-
         ],
         decoders: [
-            ToTauriCmdType, 
+            ToTauriCmdType,
             FromTauriCmdType,
-            elm::SerdeVector, 
-            elm::SerdeVertex, 
-            elm::SerdeNormal, 
-            elm::SerdeTriangle, 
+            elm::SerdeVector,
+            elm::SerdeVertex,
+            elm::SerdeNormal,
+            elm::SerdeTriangle,
             elm::SerdeIndexedTriangle,
             elm::Evaled,
             elm::Value,
