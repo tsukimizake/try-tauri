@@ -11,10 +11,12 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Input exposing (textInput)
+import Luminance exposing (Luminance)
 import Point3d
 import RecordSetter exposing (..)
 import Scene
 import Scene3d
+import Scene3d.Light exposing (chromaticity)
 import Scene3d.Material as Material
 import StlDecoder exposing (Stl, Vec)
 import Task
@@ -140,12 +142,12 @@ view model =
                 tri ( p, q, r ) =
                     Triangle3d.from (point p) (point q) (point r)
             in
-            Scene3d.facet (Material.color Color.blue) (tri ( a, b, c ))
+            Scene3d.facet (Material.matte Color.blue) (tri ( a, b, c ))
     in
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
             (model.previews
-                |> List.map (\{ stl } -> Scene.unlit model entity stl)
+                |> List.map (\{ stl } -> Scene.preview model entity stl)
             )
         , div []
             [ text "file path"

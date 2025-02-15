@@ -49,7 +49,7 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
             let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
 
             if let Ok(mesh) =
-                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Binary)
+                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
             {
                 let stl_obj = Arc::new(mesh);
                 let stl_id = env.lock().unwrap().insert_stl(stl_obj);

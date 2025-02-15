@@ -16,10 +16,13 @@ import StlDecoder exposing (Vec)
 import Viewpoint3d
 
 
-unlit : { a | viewPoint : Vec } -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c } -> Html msg
-unlit model entity stl =
-    Scene3d.unlit
-        { dimensions = ( int 400, int 400 )
+preview : { a | viewPoint : Vec } -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c } -> Html msg
+preview model entity stl =
+    Scene3d.sunny
+        { upDirection = Direction3d.z
+        , sunlightDirection = Direction3d.z
+        , shadows = True
+        , dimensions = ( int 400, int 400 )
         , camera = camera model.viewPoint
         , clipDepth = Length.meters 1
         , background = backgroundColor Color.black
