@@ -174,11 +174,8 @@ view model =
                     ]
                 ]
                 (model.console
-                    -- |> List.intersperse (text "")
                     |> List.map (\line -> Html.Styled.div [ css [ padding (px 5) ] ] [ text line ])
                 )
-
-            -- , CodeEditor.view CodeEditorMsg model.codeEditor
             ]
         ]
 
