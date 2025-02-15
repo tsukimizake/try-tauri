@@ -3,7 +3,7 @@
 mod elm;
 mod lisp;
 
-use elm::{FromTauriCmdType, ToTauriCmdType};
+use elm::{FromTauriCmdType, SerdeStlFace, ToTauriCmdType};
 use lisp::eval::assert_arg_count;
 use lisp::Expr;
 use std::io::Read;
@@ -45,16 +45,16 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
     }
     match args[0].as_ref() {
         Expr::String { value: path, .. } => {
-            if let Ok(buf) = read_stl_file(&path) {
-                if let Ok(mesh) = stl_io::read_stl(&mut std::io::Cursor::new(&buf)) {
-                    let stl_obj = Arc::new(mesh);
-                    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
-                    let stl = Arc::new(Expr::stl(stl_id));
-                    env.lock().unwrap().insert("stl".to_string(), stl.clone());
-                    Ok(stl)
-                } else {
-                    Err("load_stl: failed to parse stl".to_string())
-                }
+            // std::io::Read
+            let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
+            if let Ok(mesh) =
+                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
+            {
+                let stl_obj = Arc::new(mesh);
+                let stl_id = env.lock().unwrap().insert_stl(stl_obj);
+                let stl = Arc::new(Expr::stl(stl_id));
+                env.lock().unwrap().insert("stl".to_string(), stl.clone());
+                Ok(stl)
             } else {
                 Err("load_stl: failed to read file".to_string())
             }
@@ -140,28 +140,16 @@ fn main() {
         encoders: [
             ToTauriCmdType,
             FromTauriCmdType,
-            elm::SerdeVector,
-            elm::SerdeVertex,
-            elm::SerdeNormal,
-            elm::SerdeTriangle,
-            elm::SerdeIndexedTriangle,
             elm::Evaled,
             elm::Value,
-            crate::lisp::env::StlObjSerde,
-            elm::SerdeIndexedMesh
+            SerdeStlFace,
         ],
         decoders: [
             ToTauriCmdType,
             FromTauriCmdType,
-            elm::SerdeVector,
-            elm::SerdeVertex,
-            elm::SerdeNormal,
-            elm::SerdeTriangle,
-            elm::SerdeIndexedTriangle,
             elm::Evaled,
             elm::Value,
-            crate::lisp::env::StlObjSerde,
-            elm::SerdeIndexedMesh
+            SerdeStlFace,
         ],
     })
     .unwrap();

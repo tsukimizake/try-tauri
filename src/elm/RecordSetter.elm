@@ -1389,6 +1389,11 @@ s_maxZ value__ record__ =
     { record__ | maxZ = value__ }
 
 
+s_mesh : a -> { b | mesh : a } -> { b | mesh : a }
+s_mesh value__ record__ =
+    { record__ | mesh = value__ }
+
+
 s_meshes : a -> { b | meshes : a } -> { b | meshes : a }
 s_meshes value__ record__ =
     { record__ | meshes = value__ }
@@ -1834,6 +1839,11 @@ s_preventDefault value__ record__ =
     { record__ | preventDefault = value__ }
 
 
+s_previews : a -> { b | previews : a } -> { b | previews : a }
+s_previews value__ record__ =
+    { record__ | previews = value__ }
+
+
 s_previousEdgeIndex : a -> { b | previousEdgeIndex : a } -> { b | previousEdgeIndex : a }
 s_previousEdgeIndex value__ record__ =
     { record__ | previousEdgeIndex = value__ }
@@ -2192,6 +2202,16 @@ s_steps value__ record__ =
 s_stl : a -> { b | stl : a } -> { b | stl : a }
 s_stl value__ record__ =
     { record__ | stl = value__ }
+
+
+s_stlId : a -> { b | stlId : a } -> { b | stlId : a }
+s_stlId value__ record__ =
+    { record__ | stlId = value__ }
+
+
+s_stls : a -> { b | stls : a } -> { b | stls : a }
+s_stls value__ record__ =
+    { record__ | stls = value__ }
 
 
 s_stopPropagation : a -> { b | stopPropagation : a } -> { b | stopPropagation : a }

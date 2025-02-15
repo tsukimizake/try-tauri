@@ -11,12 +11,18 @@ pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<
         .fold(Ok(Arc::new(Expr::list(vec![]))), |_, expr| {
             eval(Arc::new(expr.clone()), env.clone())
         });
-    let stls = env.lock().unwrap().stls();
+    let polys = env
+        .lock()
+        .unwrap()
+        .polys()
+        .iter()
+        .map(|(id, poly)| -> (usize, crate::elm::SerdeStlFaces) { (*id, poly.into()) })
+        .collect();
     let previews = env.lock().unwrap().preview_list();
     evaled_expr.map(|expr| {
         Arc::new(Evaled {
             value: parser::cast_evaled(expr),
-            stls,
+            polys,
             previews,
         })
     })

@@ -19,7 +19,7 @@ use nom_locate::LocatedSpan;
 
 pub type Value = super::super::elm::Value;
 
-use super::env::{Env, StlId};
+use super::env::{Env, PolyId};
 pub fn cast_evaled(expr: Arc<Expr>) -> Value {
     match expr.as_ref() {
         Expr::Integer { value, .. } => Value::Integer(*value),
@@ -65,7 +65,7 @@ pub enum Expr {
         trailing_newline: bool,
     },
     Stl {
-        id: StlId,
+        id: PolyId,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -228,7 +228,7 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    pub fn stl(id: StlId) -> Self {
+    pub fn stl(id: PolyId) -> Self {
         Expr::Stl {
             id,
             location: None,

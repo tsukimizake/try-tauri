@@ -41,21 +41,27 @@ main =
 
 
 type alias Model =
-    { stl : Maybe Stl
-    , viewPoint : Vec
+    { viewPoint : Vec
     , sourceFilePath : String
     , sourceCode : String
     , console : List String
+    , previews : List PreviewConfig
+    }
+
+
+type alias PreviewConfig =
+    { stlId : Int
+    , stl : Stl
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    { stl = Nothing
-    , viewPoint = ( 50, 20, 30 )
+    { viewPoint = ( 50, 20, 30 )
     , sourceFilePath = "../hoge.lisp"
     , sourceCode = ""
     , console = []
+    , previews = []
     }
         |> withCmd (emit <| ToTauri (RequestCode "../hoge.lisp"))
 
@@ -80,10 +86,6 @@ update msg mPrev =
     case msg of
         FromTauri cmd ->
             case cmd of
-                -- StlBytes stlBytes ->
-                --     mPrev
-                --         |> s_stl (StlDecoder.run stlBytes)
-                --         |> noCmd
                 Code code ->
                     let
                         _ =
@@ -96,6 +98,10 @@ update msg mPrev =
                 EvalOk res ->
                     mPrev
                         |> s_console ("TODO" :: mPrev.console)
+                        |> s_previews
+                            (res.stls
+                                |> List.map (\data -> { stlId = Tuple.first data, stl = TauriCmd.decodeStl <| Tuple.second data })
+                            )
                         |> noCmd
 
                 EvalError err ->

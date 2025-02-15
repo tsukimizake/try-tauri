@@ -1,32 +1,15 @@
-use elm_rs::{Elm, ElmDecode, ElmEncode};
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-
-use super::super::elm::*;
+use truck_polymesh::PolygonMesh;
 
 use super::Expr;
 
-pub type StlId = usize;
+pub type PolyId = usize;
 
 #[derive(Debug, Clone)]
 pub struct StlObj {
-    pub mesh: Arc<stl_io::IndexedMesh>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
-pub struct StlObjSerde {
-    pub mesh: SerdeIndexedMesh,
-}
-
-impl From<&StlObj> for StlObjSerde {
-    fn from(obj: &StlObj) -> Self {
-        StlObjSerde {
-            mesh: (&*obj.mesh).into(),
-        }
-    }
+    pub mesh: Arc<truck_polymesh::PolygonMesh>,
 }
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -40,8 +23,8 @@ pub struct Env {
     parent: Option<Arc<Mutex<Env>>>,
     vars: HashMap<String, Arc<Expr>>,
     depth: usize,
-    stls: HashMap<StlId, StlObj>,
-    preview_list: Vec<StlId>,
+    polys: HashMap<PolyId, Arc<PolygonMesh>>,
+    preview_list: Vec<PolyId>,
 }
 
 impl Env {
@@ -50,7 +33,7 @@ impl Env {
             parent: None,
             vars: HashMap::new(),
             depth: 0,
-            stls: HashMap::new(),
+            polys: HashMap::new(),
             preview_list: Vec::new(),
         }
     }
@@ -60,7 +43,7 @@ impl Env {
             parent: Some(parent.clone()),
             vars: HashMap::new(),
             depth: parent.lock().unwrap().depth + 1,
-            stls: HashMap::new(),
+            polys: HashMap::new(),
             preview_list: Vec::new(),
         }))
     }
@@ -75,18 +58,18 @@ impl Env {
         })
     }
 
-    pub fn insert_stl(&mut self, mesh: Arc<stl_io::IndexedMesh>) -> StlId {
+    pub fn insert_stl(&mut self, mesh: Arc<truck_polymesh::PolygonMesh>) -> PolyId {
         let id = gen_id();
-        self.stls.insert(id, StlObj { mesh });
+        self.polys.insert(id, mesh.clone().into());
         id
     }
 
-    pub fn get_stl(&self, id: StlId) -> Option<Arc<StlObj>> {
-        self.stls
+    pub fn get_stl(&self, id: PolyId) -> Option<Arc<StlObj>> {
+        self.polys
             .get(&id)
             .map(|obj| {
                 Arc::new(StlObj {
-                    mesh: obj.mesh.clone(),
+                    mesh: obj.clone().into(),
                 })
             })
             .or_else(|| {
@@ -95,18 +78,18 @@ impl Env {
                     .and_then(|parent| parent.lock().unwrap().get_stl(id))
             })
     }
-    pub fn insert_preview_list(&mut self, id: StlId) {
+    pub fn insert_preview_list(&mut self, id: PolyId) {
         self.preview_list.push(id);
     }
 
-    pub fn stls(&self) -> Vec<(StlId, StlObjSerde)> {
-        self.stls
+    pub fn polys(&self) -> Vec<(PolyId, Arc<PolygonMesh>)> {
+        self.polys
             .iter()
-            .map(|(id, obj)| (*id, obj.into()))
+            .map(|(id, obj)| (*id, obj.clone()))
             .collect()
     }
 
-    pub fn preview_list(&self) -> Vec<StlId> {
+    pub fn preview_list(&self) -> Vec<PolyId> {
         self.preview_list.clone()
     }
 }
