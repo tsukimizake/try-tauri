@@ -31,6 +31,7 @@ import NoUnused.Patterns
 import NoUnused.Variables
 import Simplify
 import Review.Rule exposing (Rule, ignoreErrorsForDirectories)
+import NoUnoptimizedRecursion exposing (optOutWithComment)
 
 
 config : List Rule
@@ -48,5 +49,6 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
+    , NoUnoptimizedRecursion.rule (optOutWithComment "IGNORE TCO")
     ]
     |> List.map (ignoreErrorsForDirectories [ "src/generated/" ])
