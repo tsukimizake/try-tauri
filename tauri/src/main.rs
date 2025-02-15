@@ -3,7 +3,7 @@
 mod elm;
 mod lisp;
 
-use elm::{FromTauriCmdType, SerdeStlFace, ToTauriCmdType};
+use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
 use lisp::eval::assert_arg_count;
 use lisp::Expr;
 use std::io::Read;
@@ -47,8 +47,9 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
         Expr::String { value: path, .. } => {
             // std::io::Read
             let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
+
             if let Ok(mesh) =
-                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
+                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Binary)
             {
                 let stl_obj = Arc::new(mesh);
                 let stl_id = env.lock().unwrap().insert_stl(stl_obj);
@@ -142,13 +143,16 @@ fn main() {
             FromTauriCmdType,
             elm::Evaled,
             elm::Value,
-            SerdeStlFace,
+            SerdeStlFaces,
+            SerdeStlFace
+
         ],
         decoders: [
             ToTauriCmdType,
             FromTauriCmdType,
             elm::Evaled,
             elm::Value,
+            SerdeStlFaces,
             SerdeStlFace,
         ],
     })

@@ -1,6 +1,6 @@
 port module TauriCmd exposing (decodeStl, fromTauri, toTauri)
 
-import Bindings exposing (FromTauriCmdType, SerdeIndexedTriangle(..), SerdeTriangle(..), SerdeVector(..), StlObjSerde, ToTauriCmdType)
+import Bindings exposing (FromTauriCmdType, SerdeStlFace(..), SerdeStlFaces(..), ToTauriCmdType)
 import Json.Decode
 import StlDecoder exposing (Stl)
 
@@ -34,12 +34,8 @@ fromTauri msg =
 -- decode stl file for elm-3d-scene
 
 
-decodeStl : StlObjSerde -> Stl
-decodeStl { mesh } =
-    let
-        triangles =
-            mesh.faces
-    in
+decodeStl : SerdeStlFaces -> Stl
+decodeStl (SerdeStlFaces triangles) =
     { header = ""
     , numTriangles = triangles |> List.length
     , triangles =
@@ -47,11 +43,15 @@ decodeStl { mesh } =
             |> List.concatMap
                 (\face ->
                     case face of
-                        SerdeIndexedTriangle _ [ v1, v2, v3 ] ->
-                            [ ( v1, v2, v3 ) ]
+                        SerdeStlFace [ [ v00, v01, v02 ], [ v10, v11, v12 ], [ v20, v21, v22 ] ] ->
+                            [ ( ( v00, v01, v02 ), ( v10, v11, v12 ), ( v20, v21, v22 ) ) ]
 
-                        _ ->
+                        x ->
                             -- should not happen
+                            let
+                                _ =
+                                    Debug.log "failed to decode" x
+                            in
                             []
                 )
     }

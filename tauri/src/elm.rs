@@ -57,7 +57,7 @@ impl From<Arc<Evaled>> for Evaled {
 pub struct SerdeStlFaces(pub Vec<SerdeStlFace>);
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
-pub struct SerdeStlFace([f32; 3], [[f32; 3]; 3]);
+pub struct SerdeStlFace([[f32; 3]; 3]); // removed normal vector
 
 impl From<&Arc<PolygonMesh>> for SerdeStlFaces {
     fn from(mesh: &Arc<PolygonMesh>) -> SerdeStlFaces {
@@ -72,7 +72,7 @@ impl From<&Arc<PolygonMesh>> for SerdeStlFaces {
 
 impl From<&StlFace> for SerdeStlFace {
     fn from(face: &StlFace) -> SerdeStlFace {
-        SerdeStlFace(face.normal, face.vertices)
+        SerdeStlFace(face.vertices)
     }
 }
 

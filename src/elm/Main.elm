@@ -57,7 +57,7 @@ type alias PreviewConfig =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    { viewPoint = ( 50, 20, 30 )
+    { viewPoint = ( 100, 100, 100 )
     , sourceFilePath = "../hoge.lisp"
     , sourceCode = ""
     , console = []
@@ -87,19 +87,15 @@ update msg mPrev =
         FromTauri cmd ->
             case cmd of
                 Code code ->
-                    let
-                        _ =
-                            Debug.log "code" code
-                    in
                     mPrev
                         |> s_sourceCode code
                         |> noCmd
 
                 EvalOk res ->
                     mPrev
-                        |> s_console ("TODO" :: mPrev.console)
+                        |> s_console (Debug.toString res.value :: mPrev.console)
                         |> s_previews
-                            (res.stls
+                            (res.polys
                                 |> List.map (\data -> { stlId = Tuple.first data, stl = TauriCmd.decodeStl <| Tuple.second data })
                             )
                         |> noCmd
@@ -148,11 +144,9 @@ view model =
     in
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
-            [ model.stl
-                |> Maybe.map (Scene.unlit model entity)
-                |> Maybe.withDefault (text "")
-            , div [] [ text <| "stl file len: " ++ (String.fromInt <| Maybe.withDefault 0 <| Maybe.map (\stl -> List.length stl.triangles) <| model.stl) ]
-            ]
+            (model.previews
+                |> List.map (\{ stl } -> Scene.unlit model entity stl)
+            )
         , div []
             [ text "file path"
             , textInput model.sourceFilePath SetSourceFilePath
