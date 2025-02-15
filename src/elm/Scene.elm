@@ -1,13 +1,10 @@
-module Scene exposing (..)
+module Scene exposing (preview)
 
 import Angle
-import Bytes exposing (Endianness(..))
 import Camera3d exposing (Camera3d)
 import Color
 import Direction3d
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (..)
 import Length exposing (Meters)
 import Pixels exposing (int)
 import Point3d

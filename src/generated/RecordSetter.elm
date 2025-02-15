@@ -44,11 +44,6 @@ s_all value__ record__ =
     { record__ | all = value__ }
 
 
-s_allowCookiesFromOtherDomains : a -> { b | allowCookiesFromOtherDomains : a } -> { b | allowCookiesFromOtherDomains : a }
-s_allowCookiesFromOtherDomains value__ record__ =
-    { record__ | allowCookiesFromOtherDomains = value__ }
-
-
 s_alpha : a -> { b | alpha : a } -> { b | alpha : a }
 s_alpha value__ record__ =
     { record__ | alpha = value__ }
@@ -1817,6 +1812,11 @@ s_pointerEvents value__ record__ =
 s_points : a -> { b | points : a } -> { b | points : a }
 s_points value__ record__ =
     { record__ | points = value__ }
+
+
+s_polys : a -> { b | polys : a } -> { b | polys : a }
+s_polys value__ record__ =
+    { record__ | polys = value__ }
 
 
 s_popout : a -> { b | popout : a } -> { b | popout : a }

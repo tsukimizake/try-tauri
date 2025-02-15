@@ -3,7 +3,6 @@ module Main exposing (main)
 import Basics.Extra exposing (..)
 import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
-import Bytes exposing (Endianness(..))
 import Color
 import Css exposing (borderColor, borderStyle, borderWidth, fontFamily, height, monospace, padding, pct, preWrap, px, rgb, solid, whiteSpace)
 import Css.Extra exposing (..)
@@ -11,17 +10,16 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Input exposing (textInput)
-import Luminance exposing (Luminance)
-import Point3d
+import Length exposing (Meters)
+import Point3d exposing (Point3d)
 import RecordSetter exposing (..)
 import Scene
 import Scene3d
-import Scene3d.Light exposing (chromaticity)
 import Scene3d.Material as Material
 import StlDecoder exposing (Stl, Vec)
 import Task
 import TauriCmd
-import Triangle3d
+import Triangle3d exposing (Triangle3d)
 
 
 
@@ -133,12 +131,14 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     let
+        point : Vec -> Point3d Meters Vec
         point ( x, y, z ) =
             Point3d.meters x y z
 
-        entity : ( Vec, Vec, Vec ) -> Scene3d.Entity coordinates
+        entity : ( Vec, Vec, Vec ) -> Scene3d.Entity Vec
         entity ( a, b, c ) =
             let
+                tri : ( Vec, Vec, Vec ) -> Triangle3d Meters Vec
                 tri ( p, q, r ) =
                     Triangle3d.from (point p) (point q) (point r)
             in

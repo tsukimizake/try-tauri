@@ -12,7 +12,10 @@ elm_new_file path:
 
 setem:
     bunx setem
-    mv RecordSetter.elm src/elm/RecordSetter.elm
+    mv RecordSetter.elm src/generated/RecordSetter.elm
+
+lint:
+    npx elm-review --fix
 
 just_format:
     just --fmt --unstable

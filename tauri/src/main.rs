@@ -160,7 +160,7 @@ fn main() {
 
     let output = String::from_utf8(target).unwrap();
 
-    std::fs::write("../src/elm/Bindings.elm", output).unwrap();
+    std::fs::write("../src/generated/Bindings.elm", output).unwrap();
 
     tauri::Builder::default()
         .manage(SharedState::default())
