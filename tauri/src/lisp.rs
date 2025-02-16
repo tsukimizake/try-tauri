@@ -4,6 +4,7 @@ use env::Env;
 
 pub mod env;
 pub mod eval;
+mod gc;
 pub mod parser;
 pub type Expr = parser::Expr;
 pub type Value = parser::Value;

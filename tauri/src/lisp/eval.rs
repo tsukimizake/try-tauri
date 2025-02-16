@@ -234,6 +234,13 @@ pub fn initial_env() -> Arc<Mutex<Env>> {
             fun: prim_if,
         }),
     );
+    env.insert(
+        "list".to_string(),
+        Arc::new(Expr::Builtin {
+            name: "list".to_string(),
+            fun: prim_list,
+        }),
+    );
     Arc::new(Mutex::new(env))
 }
 
@@ -350,6 +357,15 @@ fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
+fn prim_list(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    let evaled = eval_args(args, env)?;
+    Ok(Arc::new(Expr::List {
+        elements: evaled,
+        location: None,
+        trailing_newline: false,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::lisp::Value;
@@ -437,5 +453,37 @@ mod tests {
         .unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(55)));
+    }
+
+    #[test]
+    fn test_define_gc() {
+        use truck_polymesh::{Faces, PolygonMesh};
+        let env = initial_env();
+        
+        // Create and insert a test mesh
+        let mesh = Arc::new(PolygonMesh::new(
+            truck_polymesh::StandardAttributes::default(),
+            Faces::from_tri_and_quad_faces(vec![], vec![]),
+        ));
+        let id = env.lock().unwrap().insert_stl(mesh);
+        
+        // Define a function that uses the mesh and evaluate it
+        let exprs = parser::parse_file(&format!(
+            "(define (use-mesh x) (list {})) (use-mesh 1)", 
+            id
+        )).unwrap();
+        
+        let result = eval_exprs(exprs, env.clone());
+        assert!(result.is_ok());
+        
+        // Mesh should still be reachable
+        assert!(env.lock().unwrap().get_stl(id).is_some());
+        
+        // Clear all definitions
+        env.lock().unwrap().vars_mut().clear();
+        env.lock().unwrap().collect_garbage();
+        
+        // Mesh should now be collected
+        assert!(env.lock().unwrap().get_stl(id).is_none());
     }
 }

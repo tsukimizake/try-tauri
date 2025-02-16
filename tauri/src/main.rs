@@ -6,7 +6,6 @@ mod lisp;
 use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
 use lisp::eval::assert_arg_count;
 use lisp::Expr;
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 
 struct SharedState {
@@ -101,17 +100,11 @@ fn from_elm(
                 Ok(val) => FromTauriCmdType::EvalOk(val.into()),
                 Err(err) => FromTauriCmdType::EvalError(err),
             };
+            state.lisp_env.lock().unwrap().collect_garbage();
             to_elm(window, result);
             Ok(())
         }
     }
-}
-
-fn read_stl_file(path: &str) -> Result<Vec<u8>, String> {
-    let mut input = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    let mut buf: Vec<u8> = Vec::new();
-    input.read_to_end(&mut buf).unwrap();
-    Ok(buf)
 }
 
 fn read_code_file(window: tauri::Window, state: tauri::State<SharedState>, path: &str) {

@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use truck_polymesh::PolygonMesh;
 
+use super::gc;
 use super::Expr;
 
 pub type PolyId = usize;
@@ -28,6 +29,9 @@ pub struct Env {
 }
 
 impl Env {
+    pub fn collect_garbage(&mut self) {
+        gc::collect_garbage(self);
+    }
     pub fn new() -> Env {
         Env {
             parent: None,
@@ -91,6 +95,24 @@ impl Env {
 
     pub fn preview_list(&self) -> Vec<PolyId> {
         self.preview_list.clone()
+    }
+
+    pub fn vars(&self) -> &HashMap<String, Arc<Expr>> {
+        &self.vars
+    }
+
+    pub fn vars_mut(&mut self) -> &mut HashMap<String, Arc<Expr>> {
+        &mut self.vars
+    }
+    pub fn parent(&self) -> &Option<Arc<Mutex<Env>>> {
+        &self.parent
+    }
+
+    pub fn retain_polys<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&PolyId, &mut Arc<PolygonMesh>) -> bool,
+    {
+        self.polys.retain(|k, v| f(k, v));
     }
 }
 
