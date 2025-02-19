@@ -4,7 +4,7 @@ mod elm;
 mod lisp;
 
 use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
-use lisp::eval::assert_arg_count;
+use lisp::eval::{assert_arg_count, eval_args};
 use lisp::Expr;
 use std::sync::{Arc, Mutex};
 
@@ -42,7 +42,8 @@ fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<
     if let Err(e) = assert_arg_count(args, 1) {
         return Err(e);
     }
-    match args[0].as_ref() {
+    let evaled = eval_args(args, env.clone())?;
+    match evaled[0].as_ref() {
         Expr::String { value: path, .. } => {
             // std::io::Read
             let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
@@ -67,10 +68,11 @@ fn prim_preview(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<A
     if let Err(e) = assert_arg_count(args, 1) {
         return Err(e);
     }
-    match args[0].as_ref() {
+    let evaled = eval_args(args, env.clone())?;
+    match evaled[0].as_ref() {
         Expr::Stl { id, .. } => {
             env.lock().unwrap().insert_preview_list(*id);
-            Ok(args[0].clone())
+            Ok(evaled[0].clone())
         }
         _ => Err("preview: expected stl".to_string()),
     }

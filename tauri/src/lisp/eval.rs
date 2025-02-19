@@ -334,7 +334,7 @@ pub fn assert_arg_count(args: &[Arc<Expr>], count: usize) -> Result<(), String> 
     }
     Ok(())
 }
-fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Expr>>, String> {
+pub fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Expr>>, String> {
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
         .collect()
@@ -459,30 +459,29 @@ mod tests {
     fn test_define_gc() {
         use truck_polymesh::{Faces, PolygonMesh};
         let env = initial_env();
-        
+
         // Create and insert a test mesh
         let mesh = Arc::new(PolygonMesh::new(
             truck_polymesh::StandardAttributes::default(),
             Faces::from_tri_and_quad_faces(vec![], vec![]),
         ));
         let id = env.lock().unwrap().insert_stl(mesh);
-        
+
         // Define a function that uses the mesh and evaluate it
-        let exprs = parser::parse_file(&format!(
-            "(define (use-mesh x) (list {})) (use-mesh 1)", 
-            id
-        )).unwrap();
-        
+        let exprs =
+            parser::parse_file(&format!("(define (use-mesh x) (list {})) (use-mesh 1)", id))
+                .unwrap();
+
         let result = eval_exprs(exprs, env.clone());
         assert!(result.is_ok());
-        
+
         // Mesh should still be reachable
         assert!(env.lock().unwrap().get_stl(id).is_some());
-        
+
         // Clear all definitions
         env.lock().unwrap().vars_mut().clear();
         env.lock().unwrap().collect_garbage();
-        
+
         // Mesh should now be collected
         assert!(env.lock().unwrap().get_stl(id).is_none());
     }
