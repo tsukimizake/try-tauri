@@ -4,4 +4,5 @@
       (+ (fib (- n 1)) (fib (- n 2)))))
 
 (fib 10)
-(load_stl "../3dbenchy.stl")
+
+(preview (load_stl "../3dbenchy.stl"))

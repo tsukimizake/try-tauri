@@ -95,8 +95,22 @@ update msg mPrev =
                     mPrev
                         |> s_console (Debug.toString res.value :: mPrev.console)
                         |> s_previews
-                            (res.polys
-                                |> List.map (\data -> { stlId = Tuple.first data, stl = TauriCmd.decodeStl <| Tuple.second data })
+                            (res.previews
+                                |> List.concatMap
+                                    (\id ->
+                                        case
+                                            res.polys
+                                                |> List.filter (\( stlId, _ ) -> stlId == id)
+                                                |> List.head
+                                                |> Maybe.map Tuple.second
+                                                |> Maybe.map TauriCmd.decodeStl
+                                        of
+                                            Just stl ->
+                                                [ { stlId = id, stl = stl } ]
+
+                                            Nothing ->
+                                                []
+                                    )
                             )
                         |> noCmd
 
