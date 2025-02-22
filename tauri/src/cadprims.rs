@@ -13,7 +13,7 @@ pub struct LispPrimitive {
 inventory::collect!(LispPrimitive);
 
 #[lisp_fn]
-pub fn load_stl(
+fn load_stl(
     args: &[Arc<Expr>],
     env: Arc<Mutex<crate::lisp::env::Env>>,
 ) -> Result<Arc<Expr>, String> {
@@ -42,7 +42,7 @@ pub fn load_stl(
 }
 
 #[lisp_fn]
-pub fn preview(
+fn preview(
     args: &[Arc<Expr>],
     env: Arc<Mutex<crate::lisp::env::Env>>,
 ) -> Result<Arc<Expr>, String> {

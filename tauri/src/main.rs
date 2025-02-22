@@ -2,10 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod elm;
 mod lisp;
-mod cadprims_macro;
 
 use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
-use lisp::Expr;
 mod cadprims;
 use std::sync::{Arc, Mutex};
 
