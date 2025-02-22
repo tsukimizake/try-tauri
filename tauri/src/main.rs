@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod elm;
 mod lisp;
+mod cadprims_macro;
 
 use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
 use lisp::Expr;
@@ -26,20 +27,7 @@ fn default_env() -> Arc<Mutex<lisp::env::Env>> {
     let env = lisp::eval::core_default_env();
     {
         let mut locked_env = env.lock().unwrap();
-        locked_env.insert(
-            "load_stl".to_string(),
-            Arc::new(Expr::Builtin {
-                name: "load_stl".to_string(),
-                fun: cadprims::prim_load_stl,
-            }),
-        );
-        locked_env.insert(
-            "preview".to_string(),
-            Arc::new(Expr::Builtin {
-                name: "preview".to_string(),
-                fun: cadprims::prim_preview,
-            }),
-        );
+        cadprims::register_primitives(&mut locked_env);
     }
     env
 }

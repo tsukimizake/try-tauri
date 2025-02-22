@@ -1,15 +1,28 @@
 use crate::lisp::eval::{assert_arg_count, eval_args};
 use crate::lisp::Expr;
+use inventory;
+use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 
-pub fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String> {
+#[doc(hidden)]
+pub struct LispPrimitive {
+    pub name: &'static str,
+    pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
+}
+
+inventory::collect!(LispPrimitive);
+
+#[lisp_fn]
+pub fn load_stl(
+    args: &[Arc<Expr>],
+    env: Arc<Mutex<crate::lisp::env::Env>>,
+) -> Result<Arc<Expr>, String> {
     if let Err(e) = assert_arg_count(args, 1) {
         return Err(e);
     }
     let evaled = eval_args(args, env.clone())?;
     match evaled[0].as_ref() {
         Expr::String { value: path, .. } => {
-            // std::io::Read
             let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
 
             if let Ok(mesh) =
@@ -28,7 +41,11 @@ pub fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<crate::lisp::env::Env>>)
     }
 }
 
-pub fn prim_preview(args: &[Arc<Expr>], env: Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String> {
+#[lisp_fn]
+pub fn preview(
+    args: &[Arc<Expr>],
+    env: Arc<Mutex<crate::lisp::env::Env>>,
+) -> Result<Arc<Expr>, String> {
     if let Err(e) = assert_arg_count(args, 1) {
         return Err(e);
     }
@@ -39,5 +56,17 @@ pub fn prim_preview(args: &[Arc<Expr>], env: Arc<Mutex<crate::lisp::env::Env>>) 
             Ok(evaled[0].clone())
         }
         _ => Err("preview: expected stl".to_string()),
+    }
+}
+
+pub fn register_primitives(env: &mut crate::lisp::env::Env) {
+    for primitive in inventory::iter::<LispPrimitive> {
+        env.insert(
+            primitive.name.to_string(),
+            Arc::new(Expr::Builtin {
+                name: primitive.name.to_string(),
+                fun: primitive.func,
+            }),
+        );
     }
 }
