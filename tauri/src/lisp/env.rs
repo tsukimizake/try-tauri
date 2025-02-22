@@ -8,6 +8,7 @@ use super::parser::Expr;
 
 pub type PolyId = usize;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct StlObj {
     pub mesh: Arc<truck_polymesh::PolygonMesh>,
@@ -121,5 +122,25 @@ impl Env {
 impl PartialEq for Env {
     fn eq(&self, other: &Self) -> bool {
         self.vars == other.vars && self.depth == other.depth
+    }
+}
+
+inventory::collect!(LispPrimitive);
+
+#[doc(hidden)]
+pub struct LispPrimitive {
+    pub name: &'static str,
+    pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
+}
+
+pub fn register_primitives(env: &mut crate::lisp::env::Env) {
+    for primitive in inventory::iter::<LispPrimitive> {
+        env.insert(
+            primitive.name.to_string(),
+            Arc::new(Expr::Builtin {
+                name: primitive.name.to_string(),
+                fun: primitive.func,
+            }),
+        );
     }
 }

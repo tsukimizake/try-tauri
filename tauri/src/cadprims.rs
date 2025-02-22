@@ -1,17 +1,10 @@
 use crate::lisp::env::Env;
+use crate::lisp::env::LispPrimitive;
 use crate::lisp::eval::{assert_arg_count, eval_args};
 use crate::lisp::parser::Expr;
 use inventory;
 use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
-
-#[doc(hidden)]
-pub struct LispPrimitive {
-    pub name: &'static str,
-    pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
-}
-
-inventory::collect!(LispPrimitive);
 
 #[lisp_fn]
 fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
@@ -54,19 +47,7 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
-pub fn register_primitives(env: &mut crate::lisp::env::Env) {
-    for primitive in inventory::iter::<LispPrimitive> {
-        env.insert(
-            primitive.name.to_string(),
-            Arc::new(Expr::Builtin {
-                name: primitive.name.to_string(),
-                fun: primitive.func,
-            }),
-        );
-    }
-}
-
 // #[lisp_fn]
-fn polygon(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) {
+fn polygon(_args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) {
     todo!()
 }
