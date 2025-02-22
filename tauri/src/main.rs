@@ -4,8 +4,8 @@ mod elm;
 mod lisp;
 
 use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
-use lisp::eval::{assert_arg_count, eval_args};
 use lisp::Expr;
+mod cadprims;
 use std::sync::{Arc, Mutex};
 
 struct SharedState {
@@ -20,14 +20,14 @@ impl SharedState {
             "load_stl".to_string(),
             Arc::new(Expr::Builtin {
                 name: "load_stl".to_string(),
-                fun: prim_load_stl,
+                fun: cadprims::prim_load_stl,
             }),
         );
         lisp_env.lock().unwrap().insert(
             "preview".to_string(),
             Arc::new(Expr::Builtin {
                 name: "preview".to_string(),
-                fun: prim_preview,
+                fun: cadprims::prim_preview,
             }),
         );
 
@@ -35,46 +35,6 @@ impl SharedState {
             code: Mutex::default(),
             lisp_env,
         }
-    }
-}
-
-fn prim_load_stl(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 1) {
-        return Err(e);
-    }
-    let evaled = eval_args(args, env.clone())?;
-    match evaled[0].as_ref() {
-        Expr::String { value: path, .. } => {
-            // std::io::Read
-            let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
-
-            if let Ok(mesh) =
-                truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
-            {
-                let stl_obj = Arc::new(mesh);
-                let stl_id = env.lock().unwrap().insert_stl(stl_obj);
-                let stl = Arc::new(Expr::stl(stl_id));
-                env.lock().unwrap().insert("stl".to_string(), stl.clone());
-                Ok(stl)
-            } else {
-                Err("load_stl: failed to read file".to_string())
-            }
-        }
-        _ => Err("load_stl: expected string".to_string()),
-    }
-}
-
-fn prim_preview(args: &[Arc<Expr>], env: Arc<Mutex<lisp::env::Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 1) {
-        return Err(e);
-    }
-    let evaled = eval_args(args, env.clone())?;
-    match evaled[0].as_ref() {
-        Expr::Stl { id, .. } => {
-            env.lock().unwrap().insert_preview_list(*id);
-            Ok(evaled[0].clone())
-        }
-        _ => Err("preview: expected stl".to_string()),
     }
 }
 
@@ -86,12 +46,6 @@ fn from_elm(
 ) -> Result<(), String> {
     println!("to_tauri: {:?}", args);
     match serde_json::from_str(&args).unwrap() {
-        // ToTauriCmdType::RequestStlFile(path) => {
-        //     if let Ok(buf) = read_stl_file(&path) {
-        //         to_elm(window, FromTauriCmdType::StlBytes(buf));
-        //     }
-        //     Ok(())
-        // }
         ToTauriCmdType::RequestCode(path) => {
             read_code_file(window, state, &path);
             Ok(())
