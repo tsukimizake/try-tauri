@@ -15,27 +15,33 @@ struct SharedState {
 
 impl SharedState {
     fn default() -> Self {
-        let lisp_env = lisp::eval::initial_env();
-        lisp_env.lock().unwrap().insert(
+        Self {
+            code: Mutex::default(),
+            lisp_env: default_env(),
+        }
+    }
+}
+
+fn default_env() -> Arc<Mutex<lisp::env::Env>> {
+    let env = lisp::eval::core_default_env();
+    {
+        let mut locked_env = env.lock().unwrap();
+        locked_env.insert(
             "load_stl".to_string(),
             Arc::new(Expr::Builtin {
                 name: "load_stl".to_string(),
                 fun: cadprims::prim_load_stl,
             }),
         );
-        lisp_env.lock().unwrap().insert(
+        locked_env.insert(
             "preview".to_string(),
             Arc::new(Expr::Builtin {
                 name: "preview".to_string(),
                 fun: cadprims::prim_preview,
             }),
         );
-
-        Self {
-            code: Mutex::default(),
-            lisp_env,
-        }
     }
+    env
 }
 
 #[tauri::command(rename_all = "snake_case")]

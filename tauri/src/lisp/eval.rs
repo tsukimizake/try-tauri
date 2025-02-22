@@ -183,7 +183,7 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
-pub fn initial_env() -> Arc<Mutex<Env>> {
+pub fn core_default_env() -> Arc<Mutex<Env>> {
     let mut env = Env::new();
     env.insert(
         "+".to_string(),
@@ -374,14 +374,14 @@ mod tests {
 
     #[test]
     fn test_math() {
-        let env = initial_env();
+        let env = core_default_env();
         let expr = parser::parse_expr("(+ 1 2 (+ 1 3))").unwrap();
         assert_eq!(eval(Arc::new(expr), env), Ok(Arc::new(Expr::integer(7))));
     }
 
     #[test]
     fn test_lambda() {
-        let env = initial_env();
+        let env = core_default_env();
         let expr = parser::parse_expr("((lambda (a b) (+ a (- b 0))) 1 2)").unwrap();
         let result = eval(Arc::new(expr), env.clone());
         assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_define() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(define a 1) a").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(1)));
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda1() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(define add (lambda(a b) (+ a b))) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda2() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(define (add a b) (+ a b)) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda3() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(define (id a) a) (id 1)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
@@ -422,21 +422,21 @@ mod tests {
     }
     #[test]
     fn test_if() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(if (< 1 2) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(2)));
     }
     #[test]
     fn test_if2() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(if (< 2 1) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
     #[test]
     fn test_if3() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file("(if (< -3 1) 2 3)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_rec() {
-        let env = initial_env();
+        let env = core_default_env();
         let exprs = parser::parse_file(
             "(define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))) (fib 10)",
         )
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn test_define_gc() {
         use truck_polymesh::{Faces, PolygonMesh};
-        let env = initial_env();
+        let env = core_default_env();
 
         // Create and insert a test mesh
         let mesh = Arc::new(PolygonMesh::new(
