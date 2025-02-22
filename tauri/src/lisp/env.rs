@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use truck_polymesh::PolygonMesh;
 
 use super::gc;
-use super::Expr;
+use super::parser::Expr;
 
 pub type PolyId = usize;
 

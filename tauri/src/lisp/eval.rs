@@ -368,7 +368,8 @@ fn prim_list(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
 
 #[cfg(test)]
 mod tests {
-    use crate::lisp::Value;
+
+    use crate::lisp::parser::Value;
 
     use super::*;
 
