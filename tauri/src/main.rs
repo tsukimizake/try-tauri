@@ -3,9 +3,10 @@
 mod elm_interface;
 mod lisp;
 
-use elm_interface::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
 mod cadprims;
 use std::sync::{Arc, Mutex};
+
+use elm_interface::{FromTauriCmdType, ToTauriCmdType};
 
 struct SharedState {
     pub code: Mutex<String>,
@@ -25,12 +26,12 @@ fn default_env() -> Arc<Mutex<lisp::env::Env>> {
     let env = lisp::eval::core_default_env();
     {
         let mut locked_env = env.lock().unwrap();
-        cadprims::register_primitives(&mut locked_env);
+        lisp::env::register_primitives(&mut locked_env);
     }
     env
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command]
 fn from_elm(
     window: tauri::Window,
     state: tauri::State<SharedState>,
@@ -80,21 +81,21 @@ fn main() {
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!("Bindings", &mut target, {
         encoders: [
-            ToTauriCmdType,
-            FromTauriCmdType,
+            elm_interface::ToTauriCmdType,
+            elm_interface::FromTauriCmdType,
             elm_interface::Evaled,
             elm_interface::Value,
-            SerdeStlFaces,
-            SerdeStlFace
+            elm_interface::SerdeStlFaces,
+            elm_interface::SerdeStlFace
 
         ],
         decoders: [
-            ToTauriCmdType,
-            FromTauriCmdType,
+            elm_interface::ToTauriCmdType,
+            elm_interface::FromTauriCmdType,
             elm_interface::Evaled,
             elm_interface::Value,
-            SerdeStlFaces,
-            SerdeStlFace,
+            elm_interface::SerdeStlFaces,
+            elm_interface::SerdeStlFace,
         ],
     })
     .unwrap();
