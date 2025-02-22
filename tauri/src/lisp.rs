@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use env::Env;
 
-use crate::elm::Evaled;
+use crate::elm_interface::Evaled;
 
 pub mod env;
 pub mod eval;

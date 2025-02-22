@@ -17,7 +17,7 @@ use nom::{
 
 use nom_locate::LocatedSpan;
 
-pub type Value = super::super::elm::Value;
+pub type Value = super::super::elm_interface::Value;
 
 use super::env::{Env, PolyId};
 pub fn cast_evaled(expr: Arc<Expr>) -> Value {

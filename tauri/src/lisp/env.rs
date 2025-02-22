@@ -68,6 +68,7 @@ impl Env {
         id
     }
 
+    #[allow(dead_code)]
     pub fn get_stl(&self, id: PolyId) -> Option<Arc<StlObj>> {
         self.polys
             .get(&id)
@@ -101,6 +102,7 @@ impl Env {
         &self.vars
     }
 
+    #[allow(dead_code)]
     pub fn vars_mut(&mut self) -> &mut HashMap<String, Arc<Expr>> {
         &mut self.vars
     }

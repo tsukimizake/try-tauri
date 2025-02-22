@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, LitStr, parse::Parse, parse::ParseStream, Token};
+use syn::{parse::Parse, parse::ParseStream, parse_macro_input, ItemFn, LitStr};
 
 struct LispFnArgs {
     name: Option<String>,
@@ -12,7 +12,9 @@ impl Parse for LispFnArgs {
             return Ok(LispFnArgs { name: None });
         }
         let name_lit: LitStr = input.parse()?;
-        Ok(LispFnArgs { name: Some(name_lit.value()) })
+        Ok(LispFnArgs {
+            name: Some(name_lit.value()),
+        })
     }
 }
 

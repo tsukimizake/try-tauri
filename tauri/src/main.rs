@@ -1,9 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-mod elm;
+mod elm_interface;
 mod lisp;
 
-use elm::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
+use elm_interface::{FromTauriCmdType, SerdeStlFace, SerdeStlFaces, ToTauriCmdType};
 mod cadprims;
 use std::sync::{Arc, Mutex};
 
@@ -82,8 +82,8 @@ fn main() {
         encoders: [
             ToTauriCmdType,
             FromTauriCmdType,
-            elm::Evaled,
-            elm::Value,
+            elm_interface::Evaled,
+            elm_interface::Value,
             SerdeStlFaces,
             SerdeStlFace
 
@@ -91,8 +91,8 @@ fn main() {
         decoders: [
             ToTauriCmdType,
             FromTauriCmdType,
-            elm::Evaled,
-            elm::Value,
+            elm_interface::Evaled,
+            elm_interface::Value,
             SerdeStlFaces,
             SerdeStlFace,
         ],

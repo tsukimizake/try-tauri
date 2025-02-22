@@ -16,7 +16,7 @@ pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<
         .unwrap()
         .polys()
         .iter()
-        .map(|(id, poly)| -> (usize, crate::elm::SerdeStlFaces) { (*id, poly.into()) })
+        .map(|(id, poly)| -> (usize, crate::elm_interface::SerdeStlFaces) { (*id, poly.into()) })
         .collect();
     let previews = env.lock().unwrap().preview_list();
     evaled_expr.map(|expr| {
