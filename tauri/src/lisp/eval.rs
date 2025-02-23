@@ -433,6 +433,7 @@ mod tests {
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(2)));
     }
+
     #[test]
     fn test_if2() {
         let env = default_env();
@@ -440,6 +441,7 @@ mod tests {
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
+
     #[test]
     fn test_if3() {
         let env = default_env();
@@ -454,6 +456,16 @@ mod tests {
     fn test_let() {
         let env = default_env();
         let exprs = parser::parse_file("(let ((a 1) (b 2)) (+ a b))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(3))
+        );
+    }
+
+    #[test]
+    fn test_let2() {
+        let env = default_env();
+        let exprs = parser::parse_file("(let ((a 1)) (let ((b (+ a 1)))  (+ b a)))").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Integer(3))
