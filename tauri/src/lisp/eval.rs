@@ -59,10 +59,10 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         return eval_define(elements, env);
     }
     if elements[0].as_ref().is_symbol("if") {
-        return eval_if(get_args_tail(elements), env);
+        return eval_if(elements, env);
     }
     if elements[0].as_ref().is_symbol("let") {
-        return eval_let(get_args_tail(elements), env);
+        return eval_let(elements, env);
     }
 
     let first = eval(elements[0].clone(), env.clone())?;
@@ -77,7 +77,7 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
             body,
             env: clausure_env,
         } => {
-            let newenv = Env::make_child(clausure_env.clone());
+            let newenv = Env::make_child(&clausure_env);
             for (arg, value) in args.iter().zip(elements.iter().skip(1)) {
                 let val = eval(value.clone(), env.clone());
                 newenv.lock().unwrap().insert(arg.clone(), val?);
@@ -87,10 +87,6 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         }
         _ => Err(format!("First element of list is not a function")),
     }
-}
-
-fn get_args_tail(args: &[Arc<Expr>]) -> &[Arc<Expr>] {
-    &args[1..]
 }
 
 // (define a 1) => (define a 1)
@@ -143,7 +139,7 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
             Ok(value)
         }
         (Expr::List { elements: args, .. }, body) => {
-            let newenv = Env::make_child(env.clone());
+            let newenv = Env::make_child(&env);
             let argnames: Vec<String> = args
                 .iter()
                 .map(|arg| {
@@ -175,7 +171,7 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
     match (expr[1].as_ref(), expr[2].clone()) {
         (Expr::List { elements: args, .. }, body) => {
-            let newenv = Env::make_child(env);
+            let newenv = Env::make_child(&env);
             let argnames: Vec<String> = args
                 .iter()
                 .map(|arg| {
@@ -197,48 +193,54 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
+// (let ((a 1) (b 2)) (+ a b))
 fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if expr.len() != 3 {
         return Err("let requires two arguments".to_string());
     }
     match (expr[1].as_ref(), expr[2].clone()) {
-        (Expr::List { elements: args, .. }, body) => {
-            let newenv = Env::make_child(env);
-            let argnames: Vec<String> = args
-                .iter()
-                .map(|arg| {
-                    arg.as_ref()
-                        .as_symbol()
-                        .expect("Let argument is not a symbol")
-                        .to_string()
-                })
-                .collect();
+        (
+            Expr::List {
+                elements: bindings, ..
+            },
+            body,
+        ) => {
+            let newenv = Env::make_child(&env);
 
-            let clausure = Arc::new(Expr::Clausure {
-                args: argnames,
-                body,
-                env: newenv,
-            });
-            Ok(clausure)
+            // Evaluate each binding and add to new environment
+            for binding in bindings {
+                match binding.as_ref() {
+                    Expr::List { elements, .. } if elements.len() == 2 => {
+                        let name = elements[0].as_ref().as_symbol()?;
+                        let value = eval(elements[1].clone(), env.clone())?;
+                        newenv.lock().unwrap().insert(name.to_string(), value);
+                    }
+                    _ => return Err("Invalid let binding format".to_string()),
+                }
+            }
+
+            // Evaluate body in new environment
+            eval(body, newenv)
         }
-        _ => Err("let requires a list as an argument".to_string()),
+        _ => Err("let requires a list of bindings".to_string()),
     }
 }
 
-fn eval_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 3 {
+// (if (< 1 2) 2 3)
+fn eval_if(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    if expr.len() != 4 {
         return Err("if requires three arguments".to_string());
     }
 
-    match eval(args[0].clone(), env.clone())?.as_ref() {
+    match eval(expr[1].clone(), env.clone())?.as_ref() {
         Expr::Symbol { name, .. } => {
             if *name != "#f" {
-                eval(args[1].clone(), env)
+                eval(expr[2].clone(), env)
             } else {
-                eval(args[2].clone(), env)
+                eval(expr[3].clone(), env)
             }
         }
-        _ => Err("First argument of if must be an integer".to_string()),
+        _ => Err("First argument of if must be a boolean".to_string()),
     }
 }
 
@@ -445,6 +447,16 @@ mod tests {
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Integer(2))
+        );
+    }
+
+    #[test]
+    fn test_let() {
+        let env = default_env();
+        let exprs = parser::parse_file("(let ((a 1) (b 2)) (+ a b))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(3))
         );
     }
 

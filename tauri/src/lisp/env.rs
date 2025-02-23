@@ -43,7 +43,7 @@ impl Env {
         }
     }
 
-    pub fn make_child(parent: Arc<Mutex<Env>>) -> Arc<Mutex<Env>> {
+    pub fn make_child(parent: &Arc<Mutex<Env>>) -> Arc<Mutex<Env>> {
         Arc::new(Mutex::new(Env {
             parent: Some(parent.clone()),
             vars: HashMap::new(),
