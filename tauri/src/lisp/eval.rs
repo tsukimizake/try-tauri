@@ -126,8 +126,6 @@ fn eval_define(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>
     }
 }
 
-// (define a 1)
-// (define add (lambda (a b) (+ a b)))
 fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if elements.len() != 3 {
         return Err("define requires two arguments".to_string());
@@ -193,7 +191,6 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
-// (let ((a 1) (b 2)) (+ a b))
 fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if expr.len() != 3 {
         return Err("let requires two arguments".to_string());
@@ -212,7 +209,7 @@ fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
                 match binding.as_ref() {
                     Expr::List { elements, .. } if elements.len() == 2 => {
                         let name = elements[0].as_ref().as_symbol()?;
-                        let value = eval(elements[1].clone(), env.clone())?;
+                        let value = eval(elements[1].clone(), newenv.clone())?;
                         newenv.lock().unwrap().insert(name.to_string(), value);
                     }
                     _ => return Err("Invalid let binding format".to_string()),
@@ -466,6 +463,17 @@ mod tests {
     fn test_let2() {
         let env = default_env();
         let exprs = parser::parse_file("(let ((a 1)) (let ((b (+ a 1)))  (+ b a)))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(3))
+        );
+    }
+
+    #[test]
+    fn test_let_3() {
+        let env = default_env();
+        // let_star
+        let exprs = parser::parse_file("(let ((a 1) (b (+ a 1))) (+ a b))").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Integer(3))

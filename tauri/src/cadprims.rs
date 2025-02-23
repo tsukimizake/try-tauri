@@ -50,7 +50,7 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
-// TODO 直す
+// TODO 引数evalで壊れてるの直す
 #[lisp_fn]
 fn triangle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if let Err(e) = assert_arg_count(args, 3) {
