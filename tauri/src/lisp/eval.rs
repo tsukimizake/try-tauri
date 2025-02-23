@@ -1,6 +1,8 @@
-use crate::lisp::env::Env;
+use crate::lisp::env::{Env, LispPrimitive};
 use crate::lisp::parser;
 use crate::lisp::parser::Expr;
+use inventory;
+use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 
 use super::Evaled;
@@ -183,67 +185,24 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
-pub fn core_default_env() -> Arc<Mutex<Env>> {
+pub fn default_env() -> Env {
     let mut env = Env::new();
-    env.insert(
-        "+".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "+".to_string(),
-            fun: prim_add,
-        }),
-    );
-    env.insert(
-        "-".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "-".to_string(),
-            fun: prim_sub,
-        }),
-    );
-    env.insert(
-        "<".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "<".to_string(),
-            fun: prim_lessthan,
-        }),
-    );
-    env.insert(
-        ">".to_string(),
-        Arc::new(Expr::Builtin {
-            name: ">".to_string(),
-            fun: prim_morethan,
-        }),
-    );
-    env.insert(
-        "<=".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "<=".to_string(),
-            fun: prim_lessthanoreq,
-        }),
-    );
-    env.insert(
-        ">=".to_string(),
-        Arc::new(Expr::Builtin {
-            name: ">=".to_string(),
-            fun: prim_morethanoreq,
-        }),
-    );
-    env.insert(
-        "if".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "if".to_string(),
-            fun: prim_if,
-        }),
-    );
-    env.insert(
-        "list".to_string(),
-        Arc::new(Expr::Builtin {
-            name: "list".to_string(),
-            fun: prim_list,
-        }),
-    );
-    Arc::new(Mutex::new(env))
+
+    // Register all primitives that used the lisp_fn macro
+    for primitive in inventory::iter::<LispPrimitive> {
+        env.insert(
+            primitive.name.to_string(),
+            Arc::new(Expr::Builtin {
+                name: primitive.name.to_string(),
+                fun: primitive.func,
+            }),
+        );
+    }
+
+    env
 }
 
+#[lisp_fn("+")]
 fn prim_add(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let evaled = eval_args(args, env)?;
     evaled
@@ -256,6 +215,7 @@ fn prim_add(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
         .map(|r| Arc::new(Expr::integer(r)))
 }
 
+#[lisp_fn("-")]
 fn prim_sub(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let evaled = eval_args(args, env)?;
     let head = evaled
@@ -276,6 +236,7 @@ fn prim_sub(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
         .map(|r| Arc::new(Expr::integer(r)))
 }
 
+#[lisp_fn("<")]
 fn prim_lessthan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthan requires two arguments".to_string());
@@ -289,6 +250,7 @@ fn prim_lessthan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     }
 }
 
+#[lisp_fn(">")]
 fn prim_morethan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethan requires two arguments".to_string());
@@ -302,6 +264,7 @@ fn prim_morethan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     }
 }
 
+#[lisp_fn("<=")]
 fn prim_lessthanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthanoreq requires two arguments".to_string());
@@ -315,6 +278,7 @@ fn prim_lessthanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Exp
     }
 }
 
+#[lisp_fn(">=")]
 fn prim_morethanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethanoreq requires two arguments".to_string());
@@ -340,6 +304,7 @@ pub fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Exp
         .collect()
 }
 
+#[lisp_fn("if")]
 fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 3 {
         return Err("if requires three arguments".to_string());
@@ -357,6 +322,7 @@ fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
+#[lisp_fn("list")]
 fn prim_list(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let evaled = eval_args(args, env)?;
     Ok(Arc::new(Expr::List {
@@ -369,20 +335,24 @@ fn prim_list(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
 #[cfg(test)]
 mod tests {
 
+    fn default_env() -> std::sync::Arc<std::sync::Mutex<crate::lisp::env::Env>> {
+        std::sync::Arc::new(std::sync::Mutex::new(crate::lisp::eval::default_env()))
+    }
+
     use crate::lisp::parser::Value;
 
     use super::*;
 
     #[test]
     fn test_math() {
-        let env = core_default_env();
+        let env = default_env();
         let expr = parser::parse_expr("(+ 1 2 (+ 1 3))").unwrap();
         assert_eq!(eval(Arc::new(expr), env), Ok(Arc::new(Expr::integer(7))));
     }
 
     #[test]
     fn test_lambda() {
-        let env = core_default_env();
+        let env = default_env();
         let expr = parser::parse_expr("((lambda (a b) (+ a (- b 0))) 1 2)").unwrap();
         let result = eval(Arc::new(expr), env.clone());
         assert_eq!(result, Ok(Arc::new(Expr::integer(3))));
@@ -390,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_define() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(define a 1) a").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(1)));
@@ -398,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda1() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(define add (lambda(a b) (+ a b))) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
@@ -406,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda2() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(define (add a b) (+ a b)) (add 1 2)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
@@ -414,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_define_lambda3() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(define (id a) a) (id 1)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
@@ -423,21 +393,21 @@ mod tests {
     }
     #[test]
     fn test_if() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(if (< 1 2) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(2)));
     }
     #[test]
     fn test_if2() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(if (< 2 1) 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
     }
     #[test]
     fn test_if3() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file("(if (< -3 1) 2 3)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
@@ -447,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_rec() {
-        let env = core_default_env();
+        let env = default_env();
         let exprs = parser::parse_file(
             "(define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))) (fib 10)",
         )
@@ -459,7 +429,7 @@ mod tests {
     #[test]
     fn test_define_gc() {
         use truck_polymesh::{Faces, PolygonMesh};
-        let env = core_default_env();
+        let env = default_env();
 
         // Create and insert a test mesh
         let mesh = Arc::new(PolygonMesh::new(

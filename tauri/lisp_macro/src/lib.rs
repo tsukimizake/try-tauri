@@ -46,7 +46,7 @@ pub fn lisp_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
         #input
 
         inventory::submit! {
-            crate::cadprims::LispPrimitive {
+            LispPrimitive {
                 name: #fn_name_str,
                 func: #fn_name
             }

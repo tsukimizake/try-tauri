@@ -128,19 +128,7 @@ impl PartialEq for Env {
 inventory::collect!(LispPrimitive);
 
 #[doc(hidden)]
-pub struct LispPrimitive {
+pub(crate) struct LispPrimitive {
     pub name: &'static str,
     pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
-}
-
-pub fn register_primitives(env: &mut crate::lisp::env::Env) {
-    for primitive in inventory::iter::<LispPrimitive> {
-        env.insert(
-            primitive.name.to_string(),
-            Arc::new(Expr::Builtin {
-                name: primitive.name.to_string(),
-                fun: primitive.func,
-            }),
-        );
-    }
 }

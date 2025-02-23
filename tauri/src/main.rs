@@ -18,18 +18,15 @@ impl SharedState {
     fn default() -> Self {
         Self {
             code: Mutex::default(),
-            lisp_env: default_env(),
+            lisp_env: Arc::new(Mutex::new(lisp::eval::default_env())),
         }
     }
 }
 
-fn default_env() -> Arc<Mutex<lisp::env::Env>> {
-    let env = lisp::eval::core_default_env();
-    {
-        let mut locked_env = env.lock().unwrap();
-        lisp::env::register_primitives(&mut locked_env);
-    }
-    env
+fn init_env(e: Arc<Mutex<lisp::env::Env>>) -> () {
+    // TODO 古いstlをgcするために全て捨てているが、evalのキャッシュを持たせる時に捨てすぎでバグるかもしれない
+    let mut env = e.lock().unwrap();
+    *env = lisp::eval::default_env();
 }
 
 #[tauri::command]
@@ -46,6 +43,7 @@ fn from_elm(
         }
         ToTauriCmdType::RequestEval => {
             let code = state.code.lock().unwrap().clone();
+            init_env(state.lisp_env.clone());
             let result = match lisp::run_file(&code, state.lisp_env.clone()) {
                 Ok(val) => FromTauriCmdType::EvalOk(val.into()),
                 Err(err) => FromTauriCmdType::EvalError(err),
