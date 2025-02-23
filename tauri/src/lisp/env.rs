@@ -52,6 +52,7 @@ impl Env {
             preview_list: Vec::new(),
         }))
     }
+
     pub fn insert(&mut self, name: String, value: Arc<Expr>) {
         self.vars.insert(name, value);
     }

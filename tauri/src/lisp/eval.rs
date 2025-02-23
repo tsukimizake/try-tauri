@@ -481,6 +481,27 @@ mod tests {
     }
 
     #[test]
+    fn test_let_4() {
+        let env = default_env();
+        let exprs = parser::parse_file("(let ((a 1)) (let ((a 0)) a))").unwrap();
+
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(0))
+        );
+    }
+
+    // #[test] // TODO progn
+    fn test_let_5() {
+        let env = default_env();
+        let exprs = parser::parse_file("(let ((a 1)) (let ((a 0)) 1) a)").unwrap();
+
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(1))
+        );
+    }
+    #[test]
     fn test_rec() {
         let env = default_env();
         let exprs = parser::parse_file(
