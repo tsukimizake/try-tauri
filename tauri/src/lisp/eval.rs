@@ -58,11 +58,19 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     if elements[0].as_ref().is_symbol("define") {
         return eval_define(elements, env);
     }
+    if elements[0].as_ref().is_symbol("if") {
+        return eval_if(get_args_tail(elements), env);
+    }
+    if elements[0].as_ref().is_symbol("let") {
+        return eval_let(get_args_tail(elements), env);
+    }
+
     let first = eval(elements[0].clone(), env.clone())?;
     match &*first {
         Expr::Builtin { fun, .. } => {
             let args = &elements[1..];
-            fun(args, env)
+            let evaled = eval_args(args, env.clone())?;
+            fun(&evaled, env)
         }
         Expr::Clausure {
             args,
@@ -79,6 +87,10 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         }
         _ => Err(format!("First element of list is not a function")),
     }
+}
+
+fn get_args_tail(args: &[Arc<Expr>]) -> &[Arc<Expr>] {
+    &args[1..]
 }
 
 // (define a 1) => (define a 1)
@@ -185,6 +197,51 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
+fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    if expr.len() != 3 {
+        return Err("let requires two arguments".to_string());
+    }
+    match (expr[1].as_ref(), expr[2].clone()) {
+        (Expr::List { elements: args, .. }, body) => {
+            let newenv = Env::make_child(env);
+            let argnames: Vec<String> = args
+                .iter()
+                .map(|arg| {
+                    arg.as_ref()
+                        .as_symbol()
+                        .expect("Let argument is not a symbol")
+                        .to_string()
+                })
+                .collect();
+
+            let clausure = Arc::new(Expr::Clausure {
+                args: argnames,
+                body,
+                env: newenv,
+            });
+            Ok(clausure)
+        }
+        _ => Err("let requires a list as an argument".to_string()),
+    }
+}
+
+fn eval_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    if args.len() != 3 {
+        return Err("if requires three arguments".to_string());
+    }
+
+    match eval(args[0].clone(), env.clone())?.as_ref() {
+        Expr::Symbol { name, .. } => {
+            if *name != "#f" {
+                eval(args[1].clone(), env)
+            } else {
+                eval(args[2].clone(), env)
+            }
+        }
+        _ => Err("First argument of if must be an integer".to_string()),
+    }
+}
+
 pub fn default_env() -> Env {
     let mut env = Env::new();
 
@@ -203,10 +260,8 @@ pub fn default_env() -> Env {
 }
 
 #[lisp_fn("+")]
-fn prim_add(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    let evaled = eval_args(args, env)?;
-    evaled
-        .iter()
+fn prim_add(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    args.iter()
         .try_fold(0, |acc, arg| match arg.as_ref() {
             Expr::Integer { value, .. } => Ok(acc + value),
             Expr::Double { value, .. } => Ok(acc + *value as i64),
@@ -216,12 +271,11 @@ fn prim_add(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 }
 
 #[lisp_fn("-")]
-fn prim_sub(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    let evaled = eval_args(args, env)?;
-    let head = evaled
+fn prim_sub(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    let head = args
         .first()
         .ok_or("sub requires at least one argument".to_string())?;
-    let tail = &evaled[1..];
+    let tail = &args[1..];
     let head = match head.as_ref() {
         Expr::Integer { value, .. } => *value,
         Expr::Double { value, .. } => *value as i64,
@@ -237,12 +291,11 @@ fn prim_sub(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 }
 
 #[lisp_fn("<")]
-fn prim_lessthan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+fn prim_lessthan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthan requires two arguments".to_string());
     }
-    let evaled = eval_args(args, env)?;
-    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+    match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a < b { "#t" } else { "#f" })))
         }
@@ -251,12 +304,11 @@ fn prim_lessthan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
 }
 
 #[lisp_fn(">")]
-fn prim_morethan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+fn prim_morethan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethan requires two arguments".to_string());
     }
-    let evaled = eval_args(args, env)?;
-    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+    match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a > b { "#t" } else { "#f" })))
         }
@@ -265,12 +317,11 @@ fn prim_morethan(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
 }
 
 #[lisp_fn("<=")]
-fn prim_lessthanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+fn prim_lessthanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("lessthanoreq requires two arguments".to_string());
     }
-    let evaled = eval_args(args, env)?;
-    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+    match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a <= b { "#t" } else { "#f" })))
         }
@@ -279,12 +330,11 @@ fn prim_lessthanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Exp
 }
 
 #[lisp_fn(">=")]
-fn prim_morethanoreq(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+fn prim_morethanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() != 2 {
         return Err("morethanoreq requires two arguments".to_string());
     }
-    let evaled = eval_args(args, env)?;
-    match (evaled[0].as_ref(), evaled[1].as_ref()) {
+    match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a >= b { "#t" } else { "#f" })))
         }
@@ -298,35 +348,17 @@ pub fn assert_arg_count(args: &[Arc<Expr>], count: usize) -> Result<(), String> 
     }
     Ok(())
 }
+
 pub fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Expr>>, String> {
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
         .collect()
 }
 
-#[lisp_fn("if")]
-fn prim_if(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 3 {
-        return Err("if requires three arguments".to_string());
-    }
-
-    match eval(args[0].clone(), env.clone())?.as_ref() {
-        Expr::Symbol { name, .. } => {
-            if *name != "#f" {
-                eval(args[1].clone(), env)
-            } else {
-                eval(args[2].clone(), env)
-            }
-        }
-        _ => Err("First argument of if must be an integer".to_string()),
-    }
-}
-
 #[lisp_fn("list")]
-fn prim_list(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    let evaled = eval_args(args, env)?;
+fn prim_list(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     Ok(Arc::new(Expr::List {
-        elements: evaled,
+        elements: args.to_vec(),
         location: None,
         trailing_newline: false,
     }))
@@ -391,6 +423,7 @@ mod tests {
             Ok(Value::Integer(1))
         );
     }
+
     #[test]
     fn test_if() {
         let env = default_env();
