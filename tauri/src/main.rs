@@ -5,6 +5,7 @@ mod lisp;
 
 mod cadprims;
 use std::sync::{Arc, Mutex};
+use tauri::Emitter; // TODO use emit_to?
 
 use elm_interface::{FromTauriCmdType, ToTauriCmdType};
 
@@ -105,6 +106,8 @@ fn main() {
     std::fs::write("../src/generated/Bindings.elm", output).unwrap();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(SharedState::default())
         .invoke_handler(tauri::generate_handler![from_elm, to_elm])
         .run(tauri::generate_context!())

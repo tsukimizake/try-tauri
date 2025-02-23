@@ -25,3 +25,4 @@ dist-ssr
 
 # project specific
 elm-stuff
+tauri/gen/*

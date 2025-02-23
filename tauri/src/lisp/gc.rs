@@ -106,8 +106,14 @@ mod tests {
         collect_garbage(&mut env);
 
         // Both meshes should be reachable
-        assert!(env.get_stl(id1).is_some(), "mesh1 should be reachable through function definition");
-        assert!(env.get_stl(id2).is_some(), "mesh2 should be reachable through preview list");
+        assert!(
+            env.get_stl(id1).is_some(),
+            "mesh1 should be reachable through function definition"
+        );
+        assert!(
+            env.get_stl(id2).is_some(),
+            "mesh2 should be reachable through preview list"
+        );
 
         // Remove the function definition
         env.vars_mut().clear();
@@ -116,8 +122,14 @@ mod tests {
         collect_garbage(&mut env);
 
         // mesh1 should now be collected, but mesh2 still reachable through preview
-        assert!(env.get_stl(id1).is_none(), "mesh1 should be collected after removing function");
-        assert!(env.get_stl(id2).is_some(), "mesh2 should still be reachable through preview list");
+        assert!(
+            env.get_stl(id1).is_none(),
+            "mesh1 should be collected after removing function"
+        );
+        assert!(
+            env.get_stl(id2).is_some(),
+            "mesh2 should still be reachable through preview list"
+        );
     }
 
     #[test]
