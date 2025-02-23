@@ -25,6 +25,7 @@ lisp_macro = { path = "./lisp_macro" }
 nom_locate = "4.2.0"
 truck-polymesh = "0.6.0"
 truck-modeling = "0.6.0"
+truck-meshalgo = "0.4.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

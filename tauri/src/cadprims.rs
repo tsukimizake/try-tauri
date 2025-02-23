@@ -5,6 +5,7 @@ use crate::lisp::parser::Expr;
 use inventory;
 use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
+use truck_meshalgo::prelude::*;
 
 #[lisp_fn]
 fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
@@ -47,7 +48,51 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
-// #[lisp_fn]
-fn polygon(_args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) {
-    todo!()
+#[lisp_fn]
+fn triangle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    if let Err(e) = assert_arg_count(args, 3) {
+        return Err(e);
+    }
+
+    let positions = args
+        .iter()
+        .map(|expr| match expr.as_ref() {
+            Expr::List { elements, .. } if elements.len() == 3 => {
+                let coords: Result<Vec<f64>, String> = elements
+                    .iter()
+                    .map(|e| match e.as_ref() {
+                        Expr::Integer { value, .. } => Ok(*value as f64),
+                        Expr::Double { value, .. } => Ok(*value),
+                        _ => Err("Expected number for coordinate".to_string()),
+                    })
+                    .collect();
+
+                match coords {
+                    Ok(c) => Ok(Point3::new(c[0], c[1], c[2])),
+                    Err(e) => Err(e),
+                }
+            }
+            _ => Err("Expected list of 3 numbers for point".to_string()),
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    if positions.len() != 3 {
+        return Err("triangle: expected exactly 3 points".to_string());
+    }
+    let attrs = StandardAttributes {
+        positions,
+        ..Default::default()
+    };
+    let faces = Faces::from_iter([[0, 1, 2]]);
+    let polygon = PolygonMesh::new(attrs, faces);
+
+    let stl_obj = Arc::new(polygon);
+    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
+    let stl = Arc::new(Expr::stl(stl_id));
+    Ok(stl)
 }
+
+// #[lisp_fn]
+// fn polygon(_args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) {
+//     todo!()
+// }

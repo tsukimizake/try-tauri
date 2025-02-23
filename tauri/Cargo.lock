@@ -18,12 +18,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "ahash"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
+dependencies = [
+ "cfg-if",
+ "once_cell",
+ "version_check",
+ "zerocopy",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2969dcb958b36655471fc61f7e416fa76033bdd4bfed0678d8fee1e2d07a1f0"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -40,6 +52,12 @@ checksum = "94fb8275041c72129eb51b7d0322c29b8387a0386127718b096429201a5d6ece"
 dependencies = [
  "alloc-no-stdlib",
 ]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "android-tzdata"
@@ -194,7 +212,7 @@ version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c48f0051a4b4c5e0b6d365cd04af53aeaa209e3cc15ec2cdb69e73cc87fbd0dc"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
  "serde",
 ]
 
@@ -394,7 +412,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
 dependencies = [
  "bytes",
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -692,7 +710,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bde55e389bea6a966bd467ad1ad7da0ae14546a5bc794d16d1e55e7fca44881"
 dependencies = [
  "cc",
- "memchr",
+ "memchr 2.7.1",
  "rustc_version",
  "toml 0.8.10",
  "vswhom",
@@ -1199,6 +1217,10 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
 
 [[package]]
 name = "heck"
@@ -1322,7 +1344,7 @@ dependencies = [
  "crossbeam-deque",
  "globset",
  "log",
- "memchr",
+ "memchr 2.7.1",
  "regex-automata 0.4.5",
  "same-file",
  "walkdir",
@@ -1578,6 +1600,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz4_flex"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05304f8e67dfc93d1b4b990137fd1a7a4c6ad44b60a9c486c8c4486f9d2027ae"
+
+[[package]]
+name = "lzma-sys"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fda04ab3764e6cde78b9974eec4f779acaba7c4e84b36eca3cf77c581b85d27"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1630,6 +1669,15 @@ dependencies = [
  "cgmath",
  "katexit",
  "num-complex",
+]
+
+[[package]]
+name = "memchr"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "148fab2e51b4f1cfc66da2a7c32981d1d3c083a803978268bb11fe4b86925e7a"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1705,11 +1753,20 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "nom"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05aec50c70fd288702bcd93284a8444607f3292dbdf2a30de5ea5dcdbe72287b"
+dependencies = [
+ "memchr 1.0.2",
+]
+
+[[package]]
+name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
  "minimal-lexical",
 ]
 
@@ -1720,8 +1777,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e3c83c053b0713da60c5b8de47fe8e494fe3ece5267b2f23090a07a053ba8f3"
 dependencies = [
  "bytecount",
- "memchr",
- "nom",
+ "memchr 2.7.1",
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -1748,6 +1805,17 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num-derive"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "num-traits"
@@ -1834,7 +1902,7 @@ version = "0.32.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -2080,7 +2148,7 @@ dependencies = [
  "base64 0.21.7",
  "indexmap 2.2.3",
  "line-wrap",
- "quick-xml",
+ "quick-xml 0.31.0",
  "serde",
  "time",
 ]
@@ -2167,11 +2235,21 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8533f14c8382aaad0d592c812ac3b826162128b65662331e1127b45c3d18536b"
+dependencies = [
+ "memchr 2.7.1",
+ "serde",
+]
+
+[[package]]
+name = "quick-xml"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1004a344b30a54e2ee58d66a71b32d2db2feb0a31f9a2d302bf0536f15de2a33"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -2326,7 +2404,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b62dbe01f0b06f9d8dc7d49e05a0785f153b00b2c227856282f671e0318c9b15"
 dependencies = [
  "aho-corasick",
- "memchr",
+ "memchr 2.7.1",
  "regex-automata 0.4.5",
  "regex-syntax 0.8.2",
 ]
@@ -2347,7 +2425,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5bb987efffd3c6d0d8f5f89510bb458559eab11e4f869acb20bf845e016259cd"
 dependencies = [
  "aho-corasick",
- "memchr",
+ "memchr 2.7.1",
  "regex-syntax 0.8.2",
 ]
 
@@ -2386,6 +2464,12 @@ dependencies = [
  "web-sys",
  "windows 0.37.0",
 ]
+
+[[package]]
+name = "robust"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbf4a6aa5f6d6888f39e980649f3ad6b666acdce1d78e95b8a2cb076e687ae30"
 
 [[package]]
 name = "rustc-demangle"
@@ -2685,6 +2769,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade"
+version = "2.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7f89cb9a80ac939dedb9ad42720cbe112424b6f6597a2a2e9c5e5b684cd4f7"
+dependencies = [
+ "hashbrown 0.14.3",
+ "num-traits",
+ "robust",
+ "smallvec",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2911,12 +3007,13 @@ dependencies = [
  "elm_rs",
  "inventory",
  "lisp_macro",
- "nom",
+ "nom 7.1.3",
  "nom_locate",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "truck-meshalgo",
  "truck-modeling",
  "truck-polymesh",
 ]
@@ -3037,7 +3134,7 @@ dependencies = [
  "json-patch",
  "kuchikiki",
  "log",
- "memchr",
+ "memchr 2.7.1",
  "phf 0.11.2",
  "proc-macro2",
  "quote",
@@ -3366,6 +3463,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "truck-meshalgo"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e18f325738e822c79bb1a48897ec789cbf50cbeeb0841105295f9da85bdf3613"
+dependencies = [
+ "array-macro",
+ "derive_more",
+ "itertools",
+ "rayon",
+ "rustc-hash",
+ "spade",
+ "truck-base",
+ "truck-geometry",
+ "truck-polymesh",
+ "truck-topology",
+ "vtkio",
+]
+
+[[package]]
 name = "truck-modeling"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3516,6 +3632,25 @@ checksum = "d3b17ae1f6c8a2b28506cd96d412eebf83b4a0ff2cbefeeb952f2f9dfa44ba18"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "vtkio"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abbe89e5b97b472d57abeb02755a06d75b28d2df7d1fe3df5baf032281a65c16"
+dependencies = [
+ "base64 0.13.1",
+ "bytemuck",
+ "byteorder",
+ "flate2",
+ "lz4_flex",
+ "nom 3.2.1",
+ "num-derive",
+ "num-traits",
+ "quick-xml 0.22.0",
+ "serde",
+ "xz2",
 ]
 
 [[package]]
@@ -4073,7 +4208,7 @@ version = "0.5.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -4082,7 +4217,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d90f4e0f530c4c69f62b80d839e9ef3855edc9cba471a160c4d692deed62b401"
 dependencies = [
- "memchr",
+ "memchr 2.7.1",
 ]
 
 [[package]]
@@ -4163,4 +4298,33 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "rustix",
+]
+
+[[package]]
+name = "xz2"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388c44dc09d76f1536602ead6d325eb532f5c122f17782bd57fb47baeeb767e2"
+dependencies = [
+ "lzma-sys",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
+dependencies = [
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
 ]
