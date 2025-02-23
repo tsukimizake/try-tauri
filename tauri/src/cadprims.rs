@@ -7,6 +7,12 @@ use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 use truck_meshalgo::prelude::*;
 
+fn add_stl_to_env(mesh: PolygonMesh, env: &Arc<Mutex<Env>>) -> Arc<Expr> {
+    let stl_obj = Arc::new(mesh);
+    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
+    Arc::new(Expr::stl(stl_id))
+}
+
 #[lisp_fn]
 fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if let Err(e) = assert_arg_count(args, 1) {
@@ -20,9 +26,7 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
             if let Ok(mesh) =
                 truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
             {
-                let stl_obj = Arc::new(mesh);
-                let stl_id = env.lock().unwrap().insert_stl(stl_obj);
-                let stl = Arc::new(Expr::stl(stl_id));
+                let stl = add_stl_to_env(mesh, &env);
                 env.lock().unwrap().insert("stl".to_string(), stl.clone());
                 Ok(stl)
             } else {
@@ -86,13 +90,5 @@ fn triangle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
     let faces = Faces::from_iter([[0, 1, 2]]);
     let polygon = PolygonMesh::new(attrs, faces);
 
-    let stl_obj = Arc::new(polygon);
-    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
-    let stl = Arc::new(Expr::stl(stl_id));
-    Ok(stl)
+    Ok(add_stl_to_env(polygon, &env))
 }
-
-// #[lisp_fn]
-// fn polygon(_args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) {
-//     todo!()
-// }
