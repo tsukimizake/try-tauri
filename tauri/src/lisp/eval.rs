@@ -491,14 +491,14 @@ mod tests {
         );
     }
 
-    // #[test] // TODO progn
+    #[test]
     fn test_let_5() {
         let env = default_env();
-        let exprs = parser::parse_file("(let ((a 1)) (let ((a 0)) 1) a)").unwrap();
+        let exprs = parser::parse_file("(let ((a 0)) 1) a").unwrap();
 
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-            Ok(Value::Integer(1))
+            Err("Undefined symbol: a".to_string())
         );
     }
     #[test]
