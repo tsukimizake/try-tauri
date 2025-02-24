@@ -6,13 +6,13 @@ use nom::error as ne;
 use nom::{character::complete::space0, combinator::recognize};
 
 use nom::{
+    IResult,
     branch::alt,
     bytes::complete::take_while1,
     character::complete::char,
     combinator::map,
     multi::many0,
     sequence::{delimited, pair, preceded, tuple},
-    IResult,
 };
 
 use nom_locate::LocatedSpan;

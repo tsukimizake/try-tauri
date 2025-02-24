@@ -2,9 +2,9 @@ use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
+use truck_polymesh::PolygonMesh;
 use truck_polymesh::stl::IntoStlIterator;
 use truck_polymesh::stl::StlFace;
-use truck_polymesh::PolygonMesh;
 
 use crate::lisp::env::PolyId;
 
