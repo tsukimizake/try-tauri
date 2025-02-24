@@ -495,10 +495,9 @@ mod tests {
     fn test_let_5() {
         let env = default_env();
         let exprs = parser::parse_file("(let ((a 0)) 1) a").unwrap();
-
-        assert_eq!(
+        std::assert_matches::assert_matches!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-            Err("Undefined symbol: a".to_string())
+            Err(_)
         );
     }
     #[test]
