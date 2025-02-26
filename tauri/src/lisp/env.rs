@@ -11,8 +11,14 @@ pub type ModelId = usize;
 // TODO other model types
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct Model {
-    pub mesh: Arc<truck_polymesh::PolygonMesh>,
+pub enum Model {
+    Vertex(Arc<truck_modeling::Vertex>),
+    Edge(Arc<truck_modeling::Edge>),
+    Wire(Arc<truck_modeling::Wire>),
+    Face(Arc<truck_modeling::Face>),
+    Shell(Arc<truck_modeling::Shell>),
+    Solid(Arc<truck_modeling::Solid>),
+    Mesh(Arc<truck_polymesh::PolygonMesh>),
 }
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -75,11 +81,7 @@ impl Env {
     pub fn get_model(&self, id: ModelId) -> Option<Arc<Model>> {
         self.polys
             .get(&id)
-            .map(|obj| {
-                Arc::new(Model {
-                    mesh: obj.clone().into(),
-                })
-            })
+            .map(|obj| Arc::new(Model::Mesh(obj.clone().into())))
             .or_else(|| {
                 self.parent
                     .as_ref()
