@@ -8,7 +8,6 @@ use super::parser::Expr;
 
 pub type ModelId = usize;
 
-// TODO other model types
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Model {
@@ -19,6 +18,48 @@ pub enum Model {
     Shell(Arc<truck_modeling::Shell>),
     Solid(Arc<truck_modeling::Solid>),
     Mesh(Arc<truck_polymesh::PolygonMesh>),
+}
+
+impl From<Arc<truck_modeling::Vertex>> for Model {
+    fn from(vertex: Arc<truck_modeling::Vertex>) -> Self {
+        Model::Vertex(vertex)
+    }
+}
+
+impl From<Arc<truck_modeling::Edge>> for Model {
+    fn from(edge: Arc<truck_modeling::Edge>) -> Self {
+        Model::Edge(edge)
+    }
+}
+
+impl From<Arc<truck_modeling::Wire>> for Model {
+    fn from(wire: Arc<truck_modeling::Wire>) -> Self {
+        Model::Wire(wire)
+    }
+}
+
+impl From<Arc<truck_modeling::Face>> for Model {
+    fn from(face: Arc<truck_modeling::Face>) -> Self {
+        Model::Face(face)
+    }
+}
+
+impl From<Arc<truck_modeling::Shell>> for Model {
+    fn from(shell: Arc<truck_modeling::Shell>) -> Self {
+        Model::Shell(shell)
+    }
+}
+
+impl From<Arc<truck_modeling::Solid>> for Model {
+    fn from(solid: Arc<truck_modeling::Solid>) -> Self {
+        Model::Solid(solid)
+    }
+}
+
+impl From<Arc<truck_polymesh::PolygonMesh>> for Model {
+    fn from(mesh: Arc<truck_polymesh::PolygonMesh>) -> Self {
+        Model::Mesh(mesh)
+    }
 }
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -32,7 +73,7 @@ pub struct Env {
     parent: Option<Arc<Mutex<Env>>>,
     vars: HashMap<String, Arc<Expr>>,
     depth: usize,
-    polys: HashMap<ModelId, Arc<PolygonMesh>>,
+    models: HashMap<ModelId, Arc<Model>>,
     preview_list: Vec<ModelId>,
 }
 
@@ -45,7 +86,7 @@ impl Env {
             parent: None,
             vars: HashMap::new(),
             depth: 0,
-            polys: HashMap::new(),
+            models: HashMap::new(),
             preview_list: Vec::new(),
         }
     }
@@ -55,7 +96,7 @@ impl Env {
             parent: Some(parent.clone()),
             vars: HashMap::new(),
             depth: parent.lock().unwrap().depth + 1,
-            polys: HashMap::new(),
+            models: HashMap::new(),
             preview_list: Vec::new(),
         }))
     }
@@ -71,31 +112,35 @@ impl Env {
         })
     }
 
-    pub fn insert_model(&mut self, mesh: Arc<truck_polymesh::PolygonMesh>) -> ModelId {
+    pub fn insert_model<T: Into<Model>>(&mut self, model_into: T) -> ModelId {
+        let model = model_into.into();
         let id = gen_id();
-        self.polys.insert(id, mesh.clone().into());
+        self.models.insert(id, Arc::new(model));
         id
     }
 
     #[allow(dead_code)]
     pub fn get_model(&self, id: ModelId) -> Option<Arc<Model>> {
-        self.polys
-            .get(&id)
-            .map(|obj| Arc::new(Model::Mesh(obj.clone().into())))
-            .or_else(|| {
-                self.parent
-                    .as_ref()
-                    .and_then(|parent| parent.lock().unwrap().get_model(id))
-            })
+        self.models.get(&id).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.lock().unwrap().get_model(id))
+        })
     }
     pub fn insert_preview_list(&mut self, id: ModelId) {
         self.preview_list.push(id);
     }
 
     pub fn polys(&self) -> Vec<(ModelId, Arc<PolygonMesh>)> {
-        self.polys
+        self.models
             .iter()
-            .map(|(id, obj)| (*id, obj.clone()))
+            .filter_map(|(id, model)| {
+                if let Model::Mesh(mesh) = model.as_ref() {
+                    Some((*id, mesh.clone()))
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 
@@ -117,9 +162,9 @@ impl Env {
 
     pub fn retain_polys<F>(&mut self, mut f: F)
     where
-        F: FnMut(&ModelId, &mut Arc<PolygonMesh>) -> bool,
+        F: FnMut(&ModelId, &mut Arc<Model>) -> bool,
     {
-        self.polys.retain(|k, v| f(k, v));
+        self.models.retain(|k, v| f(k, v));
     }
 }
 
