@@ -5,10 +5,10 @@ members = [
 ]
 
 [package]
-name = "tauri-app"
+name = "micad"
 version = "0.0.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A CAD software for myself"
+authors = ["tsukimizake"]
 edition = "2024"
 
 [build-dependencies]
