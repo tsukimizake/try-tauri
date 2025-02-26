@@ -6,14 +6,14 @@ use truck_polymesh::PolygonMesh;
 use truck_polymesh::stl::IntoStlIterator;
 use truck_polymesh::stl::StlFace;
 
-use crate::lisp::env::PolyId;
+use crate::lisp::env::ModelId;
 
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
 #[serde(tag = "t", content = "c")]
 pub enum Value {
     Integer(i64),
     Double(f64),
-    Stl(PolyId),
+    Stl(ModelId),
     String(String),
     Symbol(String),
     List(Vec<Value>),
@@ -37,8 +37,8 @@ impl PartialEq for Value {
 #[derive(Serialize, Deserialize, Debug, Elm, ElmEncode, ElmDecode, Clone)]
 pub struct Evaled {
     pub value: Value,
-    pub polys: Vec<(PolyId, SerdeStlFaces)>,
-    pub previews: Vec<PolyId>,
+    pub polys: Vec<(ModelId, SerdeStlFaces)>,
+    pub previews: Vec<ModelId>,
 }
 
 impl From<Arc<Evaled>> for Evaled {

@@ -1,4 +1,4 @@
-use super::env::{Env, PolyId};
+use super::env::{Env, ModelId};
 use super::parser::Expr;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -9,7 +9,7 @@ pub fn collect_garbage(env: &mut Env) {
     sweep_unreachable(env, &reachable);
 }
 
-fn mark_reachable(env: &Env, reachable: &mut HashSet<PolyId>) {
+fn mark_reachable(env: &Env, reachable: &mut HashSet<ModelId>) {
     // Mark all STL IDs reachable from variables
     for expr in env.vars().values() {
         mark_expr(expr, reachable);
@@ -26,9 +26,9 @@ fn mark_reachable(env: &Env, reachable: &mut HashSet<PolyId>) {
     }
 }
 
-fn mark_expr(expr: &Arc<Expr>, reachable: &mut HashSet<PolyId>) {
+fn mark_expr(expr: &Arc<Expr>, reachable: &mut HashSet<ModelId>) {
     match expr.as_ref() {
-        Expr::Stl { id, .. } => {
+        Expr::Model { id, .. } => {
             reachable.insert(*id);
         }
         Expr::List { elements, .. } => {
@@ -46,7 +46,7 @@ fn mark_expr(expr: &Arc<Expr>, reachable: &mut HashSet<PolyId>) {
     }
 }
 
-fn sweep_unreachable(env: &mut Env, reachable: &HashSet<PolyId>) {
+fn sweep_unreachable(env: &mut Env, reachable: &HashSet<ModelId>) {
     env.retain_polys(|id, _| reachable.contains(id));
 }
 
@@ -71,8 +71,8 @@ mod tests {
         ));
 
         // Insert meshes into environment
-        let id1 = env.insert_stl(mesh1);
-        let id2 = env.insert_stl(mesh2);
+        let id1 = env.insert_model(mesh1);
+        let id2 = env.insert_model(mesh2);
 
         // Define a function that uses mesh1
         env.insert(
@@ -86,7 +86,7 @@ mod tests {
                             location: None,
                             trailing_newline: false,
                         }),
-                        Arc::new(Expr::Stl {
+                        Arc::new(Expr::Model {
                             id: id1,
                             location: None,
                             trailing_newline: false,
@@ -107,11 +107,11 @@ mod tests {
 
         // Both meshes should be reachable
         assert!(
-            env.get_stl(id1).is_some(),
+            env.get_model(id1).is_some(),
             "mesh1 should be reachable through function definition"
         );
         assert!(
-            env.get_stl(id2).is_some(),
+            env.get_model(id2).is_some(),
             "mesh2 should be reachable through preview list"
         );
 
@@ -123,11 +123,11 @@ mod tests {
 
         // mesh1 should now be collected, but mesh2 still reachable through preview
         assert!(
-            env.get_stl(id1).is_none(),
+            env.get_model(id1).is_none(),
             "mesh1 should be collected after removing function"
         );
         assert!(
-            env.get_stl(id2).is_some(),
+            env.get_model(id2).is_some(),
             "mesh2 should still be reachable through preview list"
         );
     }
@@ -151,14 +151,14 @@ mod tests {
         ));
 
         // Insert meshes into environment
-        let id1 = env.insert_stl(mesh1);
-        let id2 = env.insert_stl(mesh2);
-        let id3 = env.insert_stl(mesh3);
+        let id1 = env.insert_model(mesh1);
+        let id2 = env.insert_model(mesh2);
+        let id3 = env.insert_model(mesh3);
 
         // Make id1 reachable through a variable
         env.insert(
             "mesh1".to_string(),
-            Arc::new(Expr::Stl {
+            Arc::new(Expr::Model {
                 id: id1,
                 location: None,
                 trailing_newline: false,
@@ -174,10 +174,10 @@ mod tests {
         collect_garbage(&mut env);
 
         // Check that reachable meshes are kept
-        assert!(env.get_stl(id1).is_some());
-        assert!(env.get_stl(id2).is_some());
+        assert!(env.get_model(id1).is_some());
+        assert!(env.get_model(id2).is_some());
 
         // Check that unreachable mesh is collected
-        assert!(env.get_stl(id3).is_none());
+        assert!(env.get_model(id3).is_none());
     }
 }

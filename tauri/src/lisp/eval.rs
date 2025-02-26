@@ -10,12 +10,12 @@ use super::Evaled;
 pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Evaled>, String> {
     // Only evaluate the last expression for the result
     let mut last_result = Ok(Arc::new(Expr::list(vec![])));
-    
+
     // Evaluate each expression in sequence
     for expr in &exprs {
         last_result = eval(Arc::new(expr.clone()), env.clone());
     }
-    
+
     // Lock the environment only once to get polys and previews
     let env_guard = env.lock().unwrap();
     let polys = env_guard
@@ -24,7 +24,7 @@ pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<
         .map(|(id, poly)| -> (usize, crate::elm_interface::SerdeStlFaces) { (*id, poly.into()) })
         .collect();
     let previews = env_guard.preview_list();
-    
+
     last_result.map(|expr| {
         Arc::new(Evaled {
             value: parser::cast_evaled(expr),
@@ -42,12 +42,12 @@ pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
             env_guard
                 .get(name)
                 .ok_or_else(|| format!("Undefined symbol: {}", name))
-        },
+        }
         Expr::Integer { value, .. } => Ok(Arc::new(Expr::integer(*value))),
         Expr::Double { value, .. } => Ok(Arc::new(Expr::double(*value))),
         Expr::List { elements, .. } => eval_list(&elements[..], env),
         Expr::String { value, .. } => Ok(Arc::new(Expr::string(value.clone()))),
-        Expr::Stl { id, .. } => Ok(Arc::new(Expr::stl(*id))),
+        Expr::Model { id, .. } => Ok(Arc::new(Expr::model(*id))),
         Expr::Quote { expr, .. } => Ok(Arc::new((**expr).clone())),
         // For these types, we can just return the original expression
         Expr::Builtin { .. } | Expr::Clausure { .. } => Ok(expr),
@@ -58,7 +58,7 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     if elements.is_empty() {
         return Ok(Arc::new(Expr::list(vec![])));
     }
-    
+
     // Check for special forms first to avoid unnecessary cloning
     let first_elem = elements[0].as_ref();
     if first_elem.is_symbol("lambda") {
@@ -88,10 +88,10 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
             env: clausure_env,
         } => {
             let newenv = Env::make_child(&clausure_env);
-            
+
             // Create a single reference to the parent environment for evaluating arguments
             let parent_env = env.clone();
-            
+
             for (arg, value) in args.iter().zip(elements.iter().skip(1)) {
                 let val = eval(value.clone(), parent_env.clone())?;
                 newenv.lock().unwrap().insert(arg.clone(), val);
@@ -144,7 +144,7 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
     if elements.len() != 3 {
         return Err("define requires two arguments".to_string());
     }
-    
+
     match (elements[1].as_ref(), elements[2].clone()) {
         (Expr::Symbol { name, .. }, value) => {
             // Evaluate the value first
@@ -156,7 +156,7 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
         (Expr::List { elements: args, .. }, body) => {
             // Create a new environment for the closure
             let newenv = Env::make_child(&env);
-            
+
             // Extract argument names
             let argnames: Vec<String> = args
                 .iter()
@@ -174,13 +174,13 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
                 body,
                 env: newenv,
             });
-            
+
             // Get the function name
             let fn_name = elements[1].as_symbol()?.to_string();
-            
+
             // Insert the closure into the environment
             env.lock().unwrap().insert(fn_name, clausure.clone());
-            
+
             Ok(clausure)
         }
         _ => Err("define requires a symbol as an argument".to_string()),
@@ -257,7 +257,7 @@ fn eval_if(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
 
     // Evaluate the condition first
     let condition = eval(expr[1].clone(), env.clone())?;
-    
+
     match condition.as_ref() {
         Expr::Symbol { name, .. } => {
             if *name != "#f" {
@@ -552,7 +552,7 @@ mod tests {
             truck_polymesh::StandardAttributes::default(),
             Faces::from_tri_and_quad_faces(vec![], vec![]),
         ));
-        let id = env.lock().unwrap().insert_stl(mesh);
+        let id = env.lock().unwrap().insert_model(mesh);
 
         // Define a function that uses the mesh and evaluate it
         let exprs =
@@ -563,13 +563,13 @@ mod tests {
         assert!(result.is_ok());
 
         // Mesh should still be reachable
-        assert!(env.lock().unwrap().get_stl(id).is_some());
+        assert!(env.lock().unwrap().get_model(id).is_some());
 
         // Clear all definitions
         env.lock().unwrap().vars_mut().clear();
         env.lock().unwrap().collect_garbage();
 
         // Mesh should now be collected
-        assert!(env.lock().unwrap().get_stl(id).is_none());
+        assert!(env.lock().unwrap().get_model(id).is_none());
     }
 }

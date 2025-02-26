@@ -19,12 +19,12 @@ use nom_locate::LocatedSpan;
 
 pub type Value = super::super::elm_interface::Value;
 
-use super::env::{Env, PolyId};
+use super::env::{Env, ModelId};
 pub fn cast_evaled(expr: Arc<Expr>) -> Value {
     match expr.as_ref() {
         Expr::Integer { value, .. } => Value::Integer(*value),
         Expr::Double { value, .. } => Value::Double(*value),
-        Expr::Stl { id, .. } => Value::Stl(*id),
+        Expr::Model { id, .. } => Value::Stl(*id),
         Expr::String { value, .. } => Value::String(value.clone()),
         Expr::Symbol { name, .. } => Value::Symbol(name.clone()),
         Expr::List { elements, .. } => Value::List(
@@ -64,8 +64,8 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
-    Stl {
-        id: PolyId,
+    Model {
+        id: ModelId,
         location: Option<usize>,
         trailing_newline: bool,
     },
@@ -155,12 +155,12 @@ impl PartialEq for Expr {
             ) => v1 == v2 && loc1 == loc2 && tn1 == tn2,
 
             (
-                Stl {
+                Model {
                     id: id1,
                     location: loc1,
                     trailing_newline: tn1,
                 },
-                Stl {
+                Model {
                     id: id2,
                     location: loc2,
                     trailing_newline: tn2,
@@ -228,8 +228,8 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    pub fn stl(id: PolyId) -> Self {
-        Expr::Stl {
+    pub fn model(id: ModelId) -> Self {
+        Expr::Model {
             id,
             location: None,
             trailing_newline: false,
@@ -303,7 +303,7 @@ impl Expr {
                 location,
                 trailing_newline: b,
             },
-            Expr::Stl { id, location, .. } => Expr::Stl {
+            Expr::Model { id, location, .. } => Expr::Model {
                 id,
                 location,
                 trailing_newline: b,
@@ -334,7 +334,7 @@ impl Expr {
             Expr::String {
                 trailing_newline, ..
             } => *trailing_newline,
-            Expr::Stl {
+            Expr::Model {
                 trailing_newline, ..
             } => *trailing_newline,
             Expr::Quote {
@@ -351,7 +351,7 @@ impl Expr {
             Expr::Integer { location, .. } => *location,
             Expr::Double { location, .. } => *location,
             Expr::String { location, .. } => *location,
-            Expr::Stl { location, .. } => *location,
+            Expr::Model { location, .. } => *location,
             Expr::Quote { location, .. } => *location,
             Expr::Builtin { .. } => None,
             Expr::Clausure { .. } => None,
@@ -374,7 +374,7 @@ impl Expr {
             Expr::Integer { value, .. } => value.to_string(),
             Expr::Double { value, .. } => value.to_string(),
             Expr::String { value, .. } => format!("\"{}\"", value),
-            Expr::Stl { location, .. } => {
+            Expr::Model { location, .. } => {
                 format!("<stl mesh at {}>", location.unwrap_or_default())
             }
             Expr::Quote { expr, .. } => format!("'{}", expr.format()),

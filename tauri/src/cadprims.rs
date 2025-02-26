@@ -9,8 +9,8 @@ use truck_meshalgo::prelude::*;
 
 fn add_stl_to_env(mesh: PolygonMesh, env: &Arc<Mutex<Env>>) -> Arc<Expr> {
     let stl_obj = Arc::new(mesh);
-    let stl_id = env.lock().unwrap().insert_stl(stl_obj);
-    Arc::new(Expr::stl(stl_id))
+    let stl_id = env.lock().unwrap().insert_model(stl_obj);
+    Arc::new(Expr::model(stl_id))
 }
 
 #[lisp_fn]
@@ -42,7 +42,7 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
         return Err(e);
     }
     match args[0].as_ref() {
-        Expr::Stl { id, .. } => {
+        Expr::Model { id, .. } => {
             env.lock().unwrap().insert_preview_list(*id);
             Ok(args[0].clone())
         }

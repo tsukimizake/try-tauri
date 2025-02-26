@@ -6,11 +6,12 @@ use truck_polymesh::PolygonMesh;
 use super::gc;
 use super::parser::Expr;
 
-pub type PolyId = usize;
+pub type ModelId = usize;
 
+// TODO other model types
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct StlObj {
+pub struct Model {
     pub mesh: Arc<truck_polymesh::PolygonMesh>,
 }
 
@@ -25,8 +26,8 @@ pub struct Env {
     parent: Option<Arc<Mutex<Env>>>,
     vars: HashMap<String, Arc<Expr>>,
     depth: usize,
-    polys: HashMap<PolyId, Arc<PolygonMesh>>,
-    preview_list: Vec<PolyId>,
+    polys: HashMap<ModelId, Arc<PolygonMesh>>,
+    preview_list: Vec<ModelId>,
 }
 
 impl Env {
@@ -64,39 +65,39 @@ impl Env {
         })
     }
 
-    pub fn insert_stl(&mut self, mesh: Arc<truck_polymesh::PolygonMesh>) -> PolyId {
+    pub fn insert_model(&mut self, mesh: Arc<truck_polymesh::PolygonMesh>) -> ModelId {
         let id = gen_id();
         self.polys.insert(id, mesh.clone().into());
         id
     }
 
     #[allow(dead_code)]
-    pub fn get_stl(&self, id: PolyId) -> Option<Arc<StlObj>> {
+    pub fn get_model(&self, id: ModelId) -> Option<Arc<Model>> {
         self.polys
             .get(&id)
             .map(|obj| {
-                Arc::new(StlObj {
+                Arc::new(Model {
                     mesh: obj.clone().into(),
                 })
             })
             .or_else(|| {
                 self.parent
                     .as_ref()
-                    .and_then(|parent| parent.lock().unwrap().get_stl(id))
+                    .and_then(|parent| parent.lock().unwrap().get_model(id))
             })
     }
-    pub fn insert_preview_list(&mut self, id: PolyId) {
+    pub fn insert_preview_list(&mut self, id: ModelId) {
         self.preview_list.push(id);
     }
 
-    pub fn polys(&self) -> Vec<(PolyId, Arc<PolygonMesh>)> {
+    pub fn polys(&self) -> Vec<(ModelId, Arc<PolygonMesh>)> {
         self.polys
             .iter()
             .map(|(id, obj)| (*id, obj.clone()))
             .collect()
     }
 
-    pub fn preview_list(&self) -> Vec<PolyId> {
+    pub fn preview_list(&self) -> Vec<ModelId> {
         self.preview_list.clone()
     }
 
@@ -114,7 +115,7 @@ impl Env {
 
     pub fn retain_polys<F>(&mut self, mut f: F)
     where
-        F: FnMut(&PolyId, &mut Arc<PolygonMesh>) -> bool,
+        F: FnMut(&ModelId, &mut Arc<PolygonMesh>) -> bool,
     {
         self.polys.retain(|k, v| f(k, v));
     }
