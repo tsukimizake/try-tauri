@@ -7,6 +7,7 @@ import Color
 import Direction3d
 import Html.Styled exposing (..)
 import Html.Styled.Events exposing (on)
+import Html.Styled.Lazy exposing (lazy3)
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (Meters)
 import Pixels exposing (Pixels, int)
@@ -128,21 +129,29 @@ preview : Model -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c
 preview model entity stl =
     div
         [ onWheel MouseWheel
-        , on "mousedown" (Decode.succeed MouseDown)  -- Add mousedown handler directly to this div
+        , on "mousedown" (Decode.succeed MouseDown) -- Add mousedown handler directly to this div
         ]
-        [ Scene3d.sunny
-            { upDirection = Direction3d.z
-            , sunlightDirection = Direction3d.xy model.rotatexy
-            , shadows = True
-            , dimensions = ( int 400, int 400 )
-            , camera = orbitingCamera model
-            , clipDepth = Length.meters 1
-            , background = backgroundColor Color.black
-            , entities =
-                List.map entity stl.triangles
-            }
-            |> Html.Styled.fromUnstyled
-        ]
+        [ lazy3 renderScene model entity stl ]
+
+
+
+-- Separate rendering function that can be lazily evaluated
+
+
+renderScene : Model -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c } -> Html msg
+renderScene model entity stl =
+    Scene3d.sunny
+        { upDirection = Direction3d.z
+        , sunlightDirection = Direction3d.xy model.rotatexy
+        , shadows = True
+        , dimensions = ( int 400, int 400 )
+        , camera = orbitingCamera model
+        , clipDepth = Length.meters 1
+        , background = backgroundColor Color.black
+        , entities =
+            List.map entity stl.triangles
+        }
+        |> Html.Styled.fromUnstyled
 
 
 orbitingCamera : Model -> Camera3d Meters coordinates

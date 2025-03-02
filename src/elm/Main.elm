@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Angle
-import Basics.Extra exposing (..)
+import Basics.Extra exposing (noCmd, withCmd)
 import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
 import Color
@@ -10,6 +10,7 @@ import Css.Extra exposing (..)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
+import Html.Styled.Lazy exposing (lazy)
 import Input exposing (textInput)
 import Length exposing (Meters)
 import Point3d exposing (Point3d)
@@ -174,22 +175,23 @@ update msg mPrev =
             let
                 -- Update the isDragging field and sceneModel of the specified preview
                 updatedPreviews =
-                    List.map 
-                        (\preview -> 
+                    List.map
+                        (\preview ->
                             if preview.stlId == previewId then
                                 let
-                                    (updatedSceneModel, isDragging) = 
+                                    ( updatedSceneModel, isDragging ) =
                                         Scene.update sceneMsg preview.sceneModel
-                                        
+
                                     -- Remove debug log since everything is working now
                                 in
-                                { preview | 
-                                  isDragging = isDragging, 
-                                  sceneModel = updatedSceneModel 
+                                { preview
+                                    | isDragging = isDragging
+                                    , sceneModel = updatedSceneModel
                                 }
+
                             else
                                 preview
-                        ) 
+                        )
                         mPrev.previews
             in
             mPrev
@@ -214,20 +216,23 @@ subscriptions model =
         draggingSubs =
             model.previews
                 |> List.filter .isDragging
-                |> List.map (\preview -> 
-                    Sub.map (SceneMsg preview.stlId) (Scene.subscriptions True)
-                )
-                
+                |> List.map
+                    (\preview ->
+                        Sub.map (SceneMsg preview.stlId) (Scene.subscriptions True)
+                    )
+
         -- For all other previews, we need mouse down events to start dragging
         nonDraggingSubs =
             if List.any .isDragging model.previews then
                 -- If any preview is being dragged, don't listen for mouseDown on others
                 []
+
             else
                 model.previews
-                    |> List.map (\preview ->
-                        Sub.map (SceneMsg preview.stlId) (Scene.subscriptions False)
-                    )
+                    |> List.map
+                        (\preview ->
+                            Sub.map (SceneMsg preview.stlId) (Scene.subscriptions False)
+                        )
     in
     Sub.batch
         (TauriCmd.fromTauri FromTauri :: (draggingSubs ++ nonDraggingSubs))
@@ -257,10 +262,11 @@ view model =
         viewPreview : PreviewConfig -> Html Msg
         viewPreview preview =
             let
-                { stlId, stl, sceneModel } = preview
-                
+                { stlId, stl, sceneModel } =
+                    preview
+
                 -- Label to show which preview is which
-                previewLabel = 
+                previewLabel =
                     "Preview #" ++ String.fromInt stlId
             in
             div [ css [ position relative ] ]
@@ -292,7 +298,7 @@ view model =
     in
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
-            (model.previews |> List.map viewPreview)
+            (model.previews |> List.map (\preview -> lazy viewPreview preview))
         , div []
             [ text "file path"
             , textInput model.sourceFilePath SetSourceFilePath
@@ -327,13 +333,3 @@ view model =
 black : Css.Color
 black =
     rgb 0 0 0
-
-
-withCmd : Cmd msg -> model -> ( model, Cmd msg )
-withCmd cmd model =
-    ( model, cmd )
-
-
-noCmd : model -> ( model, Cmd msg )
-noCmd model =
-    ( model, Cmd.none )
