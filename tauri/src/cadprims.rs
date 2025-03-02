@@ -16,11 +16,6 @@ fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<A
     Ok(Arc::new(Expr::model(id)))
 }
 
-fn add_stl_to_env(mesh: PolygonMesh, env: &Arc<Mutex<Env>>) -> Arc<Expr> {
-    let stl_obj = Model::Mesh(Arc::new(mesh));
-    let stl_id = env.lock().unwrap().insert_model(stl_obj);
-    Arc::new(Expr::model(stl_id))
-}
 
 /// Load an STL file into the environment
 ///
@@ -46,7 +41,7 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
             if let Ok(mesh) =
                 truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
             {
-                let stl = add_stl_to_env(mesh, &env);
+                let stl = return_model(Model::Mesh(Arc::new(mesh)), env.clone())?;
                 env.lock().unwrap().insert("stl".to_string(), stl.clone());
                 Ok(stl)
             } else {
