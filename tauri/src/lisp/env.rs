@@ -8,6 +8,7 @@ use super::parser::Expr;
 
 pub type ModelId = usize;
 
+// Define model types
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Model {
@@ -20,6 +21,72 @@ pub enum Model {
     Mesh(Arc<truck_polymesh::PolygonMesh>),
 }
 
+// Type-safe wrappers for model elements
+#[derive(Debug, Clone)]
+pub struct VertexModel(pub Arc<truck_modeling::Vertex>);
+
+#[derive(Debug, Clone)]
+pub struct EdgeModel(pub Arc<truck_modeling::Edge>);
+
+#[derive(Debug, Clone)]
+pub struct WireModel(pub Arc<truck_modeling::Wire>);
+
+#[derive(Debug, Clone)]
+pub struct FaceModel(pub Arc<truck_modeling::Face>);
+
+#[derive(Debug, Clone)]
+pub struct ShellModel(pub Arc<truck_modeling::Shell>);
+
+#[derive(Debug, Clone)]
+pub struct SolidModel(pub Arc<truck_modeling::Solid>);
+
+#[derive(Debug, Clone)]
+pub struct MeshModel(pub Arc<truck_polymesh::PolygonMesh>);
+
+// Implement conversions to Model
+impl From<VertexModel> for Model {
+    fn from(model: VertexModel) -> Self {
+        Model::Vertex(model.0)
+    }
+}
+
+impl From<EdgeModel> for Model {
+    fn from(model: EdgeModel) -> Self {
+        Model::Edge(model.0)
+    }
+}
+
+impl From<WireModel> for Model {
+    fn from(model: WireModel) -> Self {
+        Model::Wire(model.0)
+    }
+}
+
+impl From<FaceModel> for Model {
+    fn from(model: FaceModel) -> Self {
+        Model::Face(model.0)
+    }
+}
+
+impl From<ShellModel> for Model {
+    fn from(model: ShellModel) -> Self {
+        Model::Shell(model.0)
+    }
+}
+
+impl From<SolidModel> for Model {
+    fn from(model: SolidModel) -> Self {
+        Model::Solid(model.0)
+    }
+}
+
+impl From<MeshModel> for Model {
+    fn from(model: MeshModel) -> Self {
+        Model::Mesh(model.0)
+    }
+}
+
+// Keep the original Arc conversions for backward compatibility
 impl From<Arc<truck_modeling::Vertex>> for Model {
     fn from(vertex: Arc<truck_modeling::Vertex>) -> Self {
         Model::Vertex(vertex)
@@ -59,6 +126,58 @@ impl From<Arc<truck_modeling::Solid>> for Model {
 impl From<Arc<truck_polymesh::PolygonMesh>> for Model {
     fn from(mesh: Arc<truck_polymesh::PolygonMesh>) -> Self {
         Model::Mesh(mesh)
+    }
+}
+
+// Methods to safely extract specific model types
+impl Model {
+    pub fn as_vertex(&self) -> Option<&Arc<truck_modeling::Vertex>> {
+        match self {
+            Model::Vertex(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_edge(&self) -> Option<&Arc<truck_modeling::Edge>> {
+        match self {
+            Model::Edge(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    pub fn as_wire(&self) -> Option<&Arc<truck_modeling::Wire>> {
+        match self {
+            Model::Wire(w) => Some(w),
+            _ => None,
+        }
+    }
+
+    pub fn as_face(&self) -> Option<&Arc<truck_modeling::Face>> {
+        match self {
+            Model::Face(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    pub fn as_shell(&self) -> Option<&Arc<truck_modeling::Shell>> {
+        match self {
+            Model::Shell(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_solid(&self) -> Option<&Arc<truck_modeling::Solid>> {
+        match self {
+            Model::Solid(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_mesh(&self) -> Option<&Arc<truck_polymesh::PolygonMesh>> {
+        match self {
+            Model::Mesh(m) => Some(m),
+            _ => None,
+        }
     }
 }
 
@@ -171,6 +290,77 @@ impl Env {
 impl PartialEq for Env {
     fn eq(&self, other: &Self) -> bool {
         self.vars == other.vars && self.depth == other.depth
+    }
+}
+
+// Utility functions for extracting values from expressions
+pub mod extract {
+    use super::*;
+    use crate::lisp::parser::Expr;
+    use std::sync::{Arc, Mutex};
+
+    /// Extract a numeric value (f64) from an expression
+    pub fn number(expr: &Expr) -> Result<f64, String> {
+        match expr {
+            Expr::Integer { value, .. } => Ok(*value as f64),
+            Expr::Double { value, .. } => Ok(*value),
+            _ => Err(format!("Expected number, got {:?}", expr)),
+        }
+    }
+
+    /// Extract a model from an expression and get a specific type
+    pub fn model<F, T>(expr: &Expr, env: &Arc<Mutex<Env>>, extractor: F, type_name: &str) -> Result<T, String>
+    where
+        F: FnOnce(&Model) -> Option<T>,
+    {
+        match expr {
+            Expr::Model { id, .. } => {
+                let model = env
+                    .lock()
+                    .unwrap()
+                    .get_model(*id)
+                    .ok_or_else(|| format!("Model with id {} not found", id))?;
+                
+                extractor(model.as_ref())
+                    .ok_or_else(|| format!("Expected {} model", type_name))
+            }
+            _ => Err(format!("Expected model, got {:?}", expr)),
+        }
+    }
+
+    /// Extract a vertex from an expression
+    pub fn vertex(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Vertex>, String> {
+        model(expr, env, |m| m.as_vertex().cloned(), "vertex")
+    }
+
+    /// Extract an edge from an expression
+    pub fn edge(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Edge>, String> {
+        model(expr, env, |m| m.as_edge().cloned(), "edge")
+    }
+
+    /// Extract a wire from an expression
+    pub fn wire(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Wire>, String> {
+        model(expr, env, |m| m.as_wire().cloned(), "wire")
+    }
+
+    /// Extract a face from an expression
+    pub fn face(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Face>, String> {
+        model(expr, env, |m| m.as_face().cloned(), "face")
+    }
+
+    /// Extract a shell from an expression
+    pub fn shell(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Shell>, String> {
+        model(expr, env, |m| m.as_shell().cloned(), "shell")
+    }
+
+    /// Extract a solid from an expression
+    pub fn solid(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Solid>, String> {
+        model(expr, env, |m| m.as_solid().cloned(), "solid")
+    }
+
+    /// Extract a mesh from an expression
+    pub fn mesh(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_polymesh::PolygonMesh>, String> {
+        model(expr, env, |m| m.as_mesh().cloned(), "mesh")
     }
 }
 
