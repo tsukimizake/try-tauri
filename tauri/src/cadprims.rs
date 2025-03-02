@@ -286,8 +286,8 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
 
     let edge = truck_modeling::builder::circle_arc(
         &builder::vertex(Point3::new(x - radius, y, 0.0)),
-        &builder::vertex(Point3::new(x + radius, y, 0.0)),
-        Point3::new(x, y + radius, 0.0),
+        &builder::vertex(Point3::new(x - radius, y, 0.0)),
+        Point3::new(x + radius, y, 0.0),
     );
 
     let wire = truck_modeling::Wire::from(vec![edge]);
