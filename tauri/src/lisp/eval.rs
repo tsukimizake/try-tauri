@@ -3,7 +3,7 @@ use crate::lisp::parser;
 use crate::lisp::parser::Expr;
 use inventory;
 use lisp_macro::lisp_fn;
-use std::ops::{Bound, RangeBounds};
+// Note: RangeBounds are used indirectly through the From impls for ArgCount
 use std::sync::{Arc, Mutex};
 
 use super::Evaled;
@@ -50,8 +50,10 @@ pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
         Expr::String { value, .. } => Ok(Arc::new(Expr::string(value.clone()))),
         Expr::Model { id, .. } => Ok(Arc::new(Expr::model(*id))),
         Expr::Quote { expr, .. } => Ok(Arc::new((**expr).clone())),
+        Expr::Quasiquote { expr, .. } => eval_quasiquote_wrapper(&(**expr), env),
+        Expr::Unquote { .. } => Err("Unquote can only be used inside a quasiquote".to_string()),
         // For these types, we can just return the original expression
-        Expr::Builtin { .. } | Expr::Clausure { .. } => Ok(expr),
+        Expr::Builtin { .. } | Expr::Clausure { .. } | Expr::Macro { .. } => Ok(expr),
     }
 }
 
@@ -73,6 +75,9 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     }
     if first_elem.is_symbol("let") {
         return eval_let(elements, env);
+    }
+    if first_elem.is_symbol("defmacro") {
+        return eval_defmacro(elements, env);
     }
 
     // For function calls, evaluate the function expression first
@@ -100,7 +105,26 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
 
             eval(body.clone(), newenv)
         }
-        _ => Err(format!("First element of list is not a function")),
+        Expr::Macro {
+            args,
+            body,
+            env: macro_env,
+        } => {
+            // For macros, don't evaluate the arguments yet
+            let newenv = Env::make_child(&macro_env);
+            
+            // Bind unevaluated arguments to parameters
+            for (arg, value) in args.iter().zip(elements.iter().skip(1)) {
+                newenv.lock().unwrap().insert(arg.clone(), value.clone());
+            }
+            
+            // Evaluate the macro body to get the expansion
+            let expansion = eval(body.clone(), newenv)?;
+            
+            // Then evaluate the expansion
+            eval(expansion, env)
+        }
+        _ => Err(format!("First element of list is not a function or macro")),
     }
 }
 
@@ -182,6 +206,47 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
             Ok(clausure)
         }
         _ => Err("define requires a symbol as an argument".to_string()),
+    }
+}
+
+fn eval_defmacro(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(elements, 3)?;
+    match elements.get(1).map(|x| x.as_ref()) {
+        Some(Expr::List {
+            elements: name_and_args,
+            ..
+        }) => {
+            if name_and_args.is_empty() {
+                return Err("defmacro requires a name".to_string());
+            }
+            
+            let macro_name = name_and_args[0].as_symbol()?;
+            let macro_args = &name_and_args[1..];
+            
+            // Extract argument names
+            let argnames: Vec<String> = macro_args
+                .iter()
+                .map(|arg| {
+                    arg.as_ref()
+                        .as_symbol()
+                        .expect("Macro argument is not a symbol")
+                        .to_string()
+                })
+                .collect();
+                
+            // Create the macro
+            let macro_object = Arc::new(Expr::Macro {
+                args: argnames,
+                body: elements[2].clone(),
+                env: env.clone(),
+            });
+            
+            // Insert the macro into the environment
+            env.lock().unwrap().insert(macro_name.to_string(), macro_object.clone());
+            
+            Ok(macro_object)
+        }
+        _ => Err("defmacro requires a name and argument list".to_string()),
     }
 }
 
@@ -355,7 +420,7 @@ fn prim_morethanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Ex
     }
 }
 
-enum ArgCount {
+pub enum ArgCount {
     Exact(usize),
     Range(usize, usize),
     AtLeast(usize),
@@ -431,6 +496,58 @@ pub fn eval_args(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Vec<Arc<Exp
     args.iter()
         .map(|arg| eval(arg.clone(), env.clone()))
         .collect()
+}
+
+// Keeps track of the nesting level during quasiquote evaluation
+fn eval_quasiquote(expr: &Expr, env: Arc<Mutex<Env>>, nesting_level: usize) -> Result<Arc<Expr>, String> {
+    match expr {
+        // If we encounter an unquote at level 1, evaluate its contents
+        // At deeper levels, we preserve the unquote but decrease the nesting level
+        Expr::Unquote { expr, location, trailing_newline } => {
+            if nesting_level == 1 {
+                eval(Arc::new((**expr).clone()), env)
+            } else {
+                // Decrease nesting level for nested unquotes
+                let inner = eval_quasiquote(expr, env, nesting_level - 1)?;
+                Ok(Arc::new(Expr::Unquote {
+                    expr: Box::new((*inner).clone()),
+                    location: *location,
+                    trailing_newline: *trailing_newline,
+                }))
+            }
+        },
+        
+        // If we encounter another quasiquote, increase the nesting level
+        Expr::Quasiquote { expr, location, trailing_newline } => {
+            let inner = eval_quasiquote(expr, env.clone(), nesting_level + 1)?;
+            Ok(Arc::new(Expr::Quasiquote {
+                expr: Box::new((*inner).clone()),
+                location: *location,
+                trailing_newline: *trailing_newline,
+            }))
+        },
+        
+        // If we have a list, process each element
+        Expr::List { elements, location, trailing_newline } => {
+            let mut result = Vec::new();
+            for element in elements {
+                result.push(eval_quasiquote(element.as_ref(), env.clone(), nesting_level)?);
+            }
+            Ok(Arc::new(Expr::List {
+                elements: result,
+                location: *location,
+                trailing_newline: *trailing_newline,
+            }))
+        },
+        
+        // For all other expressions, just return them as is (like quote)
+        _ => Ok(Arc::new(expr.clone())),
+    }
+}
+
+// Wrapper function to start quasiquote evaluation with nesting level 1
+fn eval_quasiquote_wrapper(expr: &Expr, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    eval_quasiquote(expr, env, 1)
 }
 
 #[lisp_fn("list")]
@@ -588,6 +705,99 @@ mod tests {
         .unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(55)));
+    }
+    
+    #[test]
+    fn test_defmacro() {
+        let env = default_env();
+        let exprs = parser::parse_file(
+            "(defmacro (when cond body) `(if ~cond ~body #f)) (when (< 1 2) 3)",
+        )
+        .unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
+    }
+    
+    #[test]
+    fn test_quasiquote() {
+        let env = default_env();
+        
+        // Simple quasiquote with no unquote
+        let exprs = parser::parse_file("`(1 2 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        match result.map(|r| r.value.clone()) {
+            Ok(Value::List(items)) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+                assert_eq!(items[1], Value::Integer(2));
+                assert_eq!(items[2], Value::Integer(3));
+            },
+            _ => panic!("Expected list"),
+        }
+        
+        // Quasiquote with unquote
+        let exprs = parser::parse_file("(define x 42) `(1 ~x 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        match result.map(|r| r.value.clone()) {
+            Ok(Value::List(items)) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+                assert_eq!(items[1], Value::Integer(42));
+                assert_eq!(items[2], Value::Integer(3));
+            },
+            _ => panic!("Expected list"),
+        }
+        
+        // Simple case of quasiquote
+        let exprs = parser::parse_file("`(1 2 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        match result.map(|r| r.value.clone()) {
+            Ok(Value::List(items)) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+                assert_eq!(items[1], Value::Integer(2));
+                assert_eq!(items[2], Value::Integer(3));
+            },
+            _ => panic!("Expected list"),
+        }
+        
+        // Using unquote with a defined value
+        let exprs = parser::parse_file("(define x 42) `(1 ~x 3)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        match result.map(|r| r.value.clone()) {
+            Ok(Value::List(items)) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+                assert_eq!(items[1], Value::Integer(42));
+                assert_eq!(items[2], Value::Integer(3));
+            },
+            _ => panic!("Expected list"),
+        }
+        
+        // Nested quasiquote/unquote - this tests proper nesting behavior
+        let exprs = parser::parse_file("(define x 42) `(1 `(2 ~x) ~x)").unwrap();
+        let result = eval_exprs(exprs, env.clone());
+        match result.map(|r| r.value.clone()) {
+            Ok(Value::List(items)) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+                
+                // The second item should be a quasiquoted list where the inner x is not evaluated
+                // because it's inside a nested quasiquote
+                match &items[1] {
+                    Value::List(inner) => {
+                        assert_eq!(inner.len(), 2);
+                        assert_eq!(inner[0], Value::Integer(2));
+                        assert_eq!(inner[1], Value::Symbol("x".to_string()));
+                    },
+                    _ => panic!("Expected inner list"),
+                }
+                
+                // The third item is directly unquoted, so it should be evaluated
+                assert_eq!(items[2], Value::Integer(42));
+            },
+            _ => panic!("Expected list"),
+        }
     }
 
     #[test]

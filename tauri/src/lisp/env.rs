@@ -139,6 +139,7 @@ impl Model {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_vertex(&self) -> Option<&Arc<truck_modeling::Vertex>> {
         match self {
             Model::Vertex(v) => Some(v),
@@ -146,6 +147,7 @@ impl Model {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_edge(&self) -> Option<&Arc<truck_modeling::Edge>> {
         match self {
             Model::Edge(e) => Some(e),
@@ -153,6 +155,7 @@ impl Model {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_wire(&self) -> Option<&Arc<truck_modeling::Wire>> {
         match self {
             Model::Wire(w) => Some(w),
@@ -167,6 +170,7 @@ impl Model {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_shell(&self) -> Option<&Arc<truck_modeling::Shell>> {
         match self {
             Model::Shell(s) => Some(s),
@@ -341,6 +345,7 @@ pub mod extract {
     }
 
     /// Extract a vertex from an expression
+    #[allow(dead_code)]
     pub fn vertex(
         expr: &Expr,
         env: &Arc<Mutex<Env>>,
@@ -349,11 +354,13 @@ pub mod extract {
     }
 
     /// Extract an edge from an expression
+    #[allow(dead_code)]
     pub fn edge(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Edge>, String> {
         model(expr, env, |m| m.as_edge().cloned(), "edge")
     }
 
     /// Extract a wire from an expression
+    #[allow(dead_code)]
     pub fn wire(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Wire>, String> {
         model(expr, env, |m| m.as_wire().cloned(), "wire")
     }
@@ -364,6 +371,7 @@ pub mod extract {
     }
 
     /// Extract a shell from an expression
+    #[allow(dead_code)]
     pub fn shell(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Shell>, String> {
         model(expr, env, |m| m.as_shell().cloned(), "shell")
     }
@@ -374,6 +382,7 @@ pub mod extract {
     }
 
     /// Extract a mesh from an expression
+    #[allow(dead_code)]
     pub fn mesh(
         expr: &Expr,
         env: &Arc<Mutex<Env>>,

@@ -312,6 +312,7 @@ fn sandbox(_: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     return_model(Arc::new(mesh), env)
 }
 
+#[allow(dead_code)]
 fn debug(wire: &truck_modeling::Wire) {
     let vertex_format = VertexDisplayFormat::Full;
     let _edge_format = EdgeDisplayFormat::Full { vertex_format };

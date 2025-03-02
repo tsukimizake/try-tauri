@@ -30,10 +30,15 @@ pub fn cast_evaled(expr: Arc<Expr>) -> Value {
         Expr::List { elements, .. } => Value::List(
             elements
                 .iter()
-                .map(|e| cast_evaled(e.clone().try_into().unwrap()))
+                .map(|e| cast_evaled(e.clone()))
                 .collect(),
         ),
-        _ => panic!("cast_evaled: unexpected expr"),
+        Expr::Quote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
+        Expr::Quasiquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
+        Expr::Unquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
+        Expr::Builtin { name, .. } => Value::Symbol(format!("<builtin {}>", name)),
+        Expr::Clausure { .. } => Value::Symbol("<closure>".to_string()),
+        Expr::Macro { .. } => Value::Symbol("<macro>".to_string()),
     }
 }
 
@@ -74,11 +79,26 @@ pub enum Expr {
         location: Option<usize>,
         trailing_newline: bool,
     },
+    Quasiquote {
+        expr: Box<Expr>,
+        location: Option<usize>,
+        trailing_newline: bool,
+    },
+    Unquote {
+        expr: Box<Expr>,
+        location: Option<usize>,
+        trailing_newline: bool,
+    },
     Builtin {
         name: String,
         fun: fn(&[Arc<Expr>], Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>,
     },
     Clausure {
+        args: Vec<String>,
+        body: Arc<Expr>,
+        env: Arc<Mutex<Env>>,
+    },
+    Macro {
         args: Vec<String>,
         body: Arc<Expr>,
         env: Arc<Mutex<Env>>,
@@ -178,6 +198,30 @@ impl PartialEq for Expr {
                     trailing_newline: tn2,
                 },
             ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
+            (
+                Quasiquote {
+                    expr: e1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Quasiquote {
+                    expr: e2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
+            (
+                Unquote {
+                    expr: e1,
+                    location: loc1,
+                    trailing_newline: tn1,
+                },
+                Unquote {
+                    expr: e2,
+                    location: loc2,
+                    trailing_newline: tn2,
+                },
+            ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
 
             (Builtin { name: n1, .. }, Builtin { name: n2, .. }) => n1 == n2,
 
@@ -188,6 +232,19 @@ impl PartialEq for Expr {
                     env: e1,
                 },
                 Clausure {
+                    args: a2,
+                    body: b2,
+                    env: e2,
+                },
+            ) => a1 == a2 && b1 == b2 && Arc::ptr_eq(e1, e2),
+            
+            (
+                Macro {
+                    args: a1,
+                    body: b1,
+                    env: e1,
+                },
+                Macro {
                     args: a2,
                     body: b2,
                     env: e2,
@@ -243,13 +300,32 @@ impl Expr {
         }
     }
 
+    #[allow(unused)]
     pub fn nil() -> Self {
-        Expr::list(vec![])
+        Self::list(vec![])
     }
 
     #[allow(dead_code)]
     pub fn quote(expr: Expr) -> Self {
         Expr::Quote {
+            expr: Box::new(expr),
+            location: None,
+            trailing_newline: false,
+        }
+    }
+    
+    #[allow(dead_code)]
+    pub fn quasiquote(expr: Expr) -> Self {
+        Expr::Quasiquote {
+            expr: Box::new(expr),
+            location: None,
+            trailing_newline: false,
+        }
+    }
+    
+    #[allow(dead_code)]
+    pub fn unquote(expr: Expr) -> Self {
+        Expr::Unquote {
             expr: Box::new(expr),
             location: None,
             trailing_newline: false,
@@ -313,8 +389,19 @@ impl Expr {
                 location,
                 trailing_newline: b,
             },
+            Expr::Quasiquote { expr, location, .. } => Expr::Quasiquote {
+                expr,
+                location,
+                trailing_newline: b,
+            },
+            Expr::Unquote { expr, location, .. } => Expr::Unquote {
+                expr,
+                location,
+                trailing_newline: b,
+            },
             Expr::Builtin { .. } => self,
             Expr::Clausure { .. } => self,
+            Expr::Macro { .. } => self,
         }
     }
     pub fn has_newline(&self) -> bool {
@@ -340,8 +427,15 @@ impl Expr {
             Expr::Quote {
                 trailing_newline, ..
             } => *trailing_newline,
+            Expr::Quasiquote {
+                trailing_newline, ..
+            } => *trailing_newline,
+            Expr::Unquote {
+                trailing_newline, ..
+            } => *trailing_newline,
             Expr::Builtin { .. } => false,
             Expr::Clausure { .. } => false,
+            Expr::Macro { .. } => false,
         }
     }
     pub fn location(&self) -> Option<usize> {
@@ -353,10 +447,14 @@ impl Expr {
             Expr::String { location, .. } => *location,
             Expr::Model { location, .. } => *location,
             Expr::Quote { location, .. } => *location,
+            Expr::Quasiquote { location, .. } => *location,
+            Expr::Unquote { location, .. } => *location,
             Expr::Builtin { .. } => None,
             Expr::Clausure { .. } => None,
+            Expr::Macro { .. } => None,
         }
     }
+    #[allow(unused)]
     pub fn format(&self) -> String {
         match self {
             Expr::Symbol { name, .. } => name.clone(),
@@ -378,9 +476,24 @@ impl Expr {
                 format!("<stl mesh at {}>", location.unwrap_or_default())
             }
             Expr::Quote { expr, .. } => format!("'{}", expr.format()),
+            Expr::Quasiquote { expr, .. } => format!("`{}", expr.format()),
+            Expr::Unquote { expr, .. } => format!("~{}", expr.format()),
             Expr::Builtin { name, .. } => format!("<builtin {}>", name),
             Expr::Clausure { args, body, .. } => {
                 let mut s = "(lambda (".to_string();
+                for (i, arg) in args.iter().enumerate() {
+                    s.push_str(arg);
+                    if i < args.len() - 1 {
+                        s.push(' ');
+                    }
+                }
+                s.push_str(") ");
+                s.push_str(&body.format());
+                s.push(')');
+                s
+            }
+            Expr::Macro { args, body, .. } => {
+                let mut s = "(macro (".to_string();
                 for (i, arg) in args.iter().enumerate() {
                     s.push_str(arg);
                     if i < args.len() - 1 {
@@ -435,6 +548,8 @@ pub enum Token<'a> {
     Integer(Span<'a>),
     Double(Span<'a>),
     Quote(Span<'a>),
+    Quasiquote(Span<'a>),
+    Unquote(Span<'a>),
     String(Span<'a>),
     LParen(Span<'a>),
     RParen(Span<'a>),
@@ -479,6 +594,14 @@ fn quote(input: Span) -> IResult<Span, Token> {
     map(char('\''), |_| Token::Quote(input))(input)
 }
 
+fn quasiquote(input: Span) -> IResult<Span, Token> {
+    map(char('`'), |_| Token::Quasiquote(input))(input)
+}
+
+fn unquote(input: Span) -> IResult<Span, Token> {
+    map(char('~'), |_| Token::Unquote(input))(input)
+}
+
 fn lparen(input: Span) -> IResult<Span, Token> {
     map(char('('), |_| Token::LParen(input))(input)
 }
@@ -495,7 +618,7 @@ fn tokenize(input: Span) -> IResult<Span, Vec<Token>> {
     many0(delimited(
         space0,
         alt((
-            string, double, integer, symbol, quote, lparen, rparen, newline,
+            string, double, integer, symbol, quote, quasiquote, unquote, lparen, rparen, newline,
         )),
         space0,
     ))(input)
@@ -518,6 +641,8 @@ fn expr<'a>(tokens: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
             parse_integer,
             parse_symbol,
             parse_quote,
+            parse_quasiquote,
+            parse_unquote,
             parse_list,
         )),
         many0(parse_newline),
@@ -597,6 +722,42 @@ fn parse_quote<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
             Ok((rest, expr)) => Ok((
                 rest,
                 Expr::Quote {
+                    expr: Box::new(expr),
+                    location: Some(span.location_offset()),
+                    trailing_newline: false,
+                },
+            )),
+            Err(e) => Err(e),
+        }
+    } else {
+        Err(nom::Err::Error(ne::Error::new(input, ErrorKind::Tag)))
+    }
+}
+
+fn parse_quasiquote<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
+    if let Some((Token::Quasiquote(span), rest)) = input.split_first() {
+        match expr(rest) {
+            Ok((rest, expr)) => Ok((
+                rest,
+                Expr::Quasiquote {
+                    expr: Box::new(expr),
+                    location: Some(span.location_offset()),
+                    trailing_newline: false,
+                },
+            )),
+            Err(e) => Err(e),
+        }
+    } else {
+        Err(nom::Err::Error(ne::Error::new(input, ErrorKind::Tag)))
+    }
+}
+
+fn parse_unquote<'a>(input: &'a [Token]) -> IResult<&'a [Token<'a>], Expr> {
+    if let Some((Token::Unquote(span), rest)) = input.split_first() {
+        match expr(rest) {
+            Ok((rest, expr)) => Ok((
+                rest,
+                Expr::Unquote {
                     expr: Box::new(expr),
                     location: Some(span.location_offset()),
                     trailing_newline: false,
