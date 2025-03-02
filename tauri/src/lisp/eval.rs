@@ -3,6 +3,7 @@ use crate::lisp::parser;
 use crate::lisp::parser::Expr;
 use inventory;
 use lisp_macro::lisp_fn;
+use std::ops::{Bound, RangeBounds};
 use std::sync::{Arc, Mutex};
 
 use super::Evaled;
@@ -371,9 +372,31 @@ fn prim_morethanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Ex
     }
 }
 
-pub fn assert_arg_count(args: &[Arc<Expr>], count: usize) -> Result<(), String> {
-    if args.len() != count {
-        return Err(format!("expected {} arguments, got {}", count, args.len()));
+pub fn assert_arg_count(args: &[Arc<Expr>], count: impl RangeBounds<usize>) -> Result<(), String> {
+    if !count.contains(&args.len()) {
+        let error_msg = match (count.start_bound(), count.end_bound()) {
+            (Bound::Included(min), Bound::Included(max)) => {
+                if min == max {
+                    format!("expected {} arguments, got {}", min, args.len())
+                } else {
+                    format!("expected {} to {} arguments, got {}", min, max, args.len())
+                }
+            },
+            (Bound::Included(min), Bound::Excluded(max)) => {
+                format!("expected {} to {} arguments, got {}", min, max - 1, args.len())
+            },
+            (Bound::Included(min), Bound::Unbounded) => {
+                format!("expected at least {} arguments, got {}", min, args.len())
+            },
+            (Bound::Unbounded, Bound::Included(max)) => {
+                format!("expected at most {} arguments, got {}", max, args.len())
+            },
+            (Bound::Unbounded, Bound::Excluded(max)) => {
+                format!("expected at most {} arguments, got {}", max - 1, args.len())
+            },
+            _ => format!("invalid number of arguments: got {}", args.len()),
+        };
+        return Err(error_msg);
     }
     Ok(())
 }

@@ -30,9 +30,7 @@ fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<A
 /// The model is also bound to the variable `stl` in the environment.
 #[lisp_fn]
 fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 1) {
-        return Err(e);
-    }
+    assert_arg_count(args, 1)?;
     match args[0].as_ref() {
         Expr::String { value: path, .. } => {
             let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
@@ -62,9 +60,7 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 /// The model that was marked for preview
 #[lisp_fn]
 fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 1) {
-        return Err(e);
-    }
+    assert_arg_count(args, 1)?;
     match args[0].as_ref() {
         Expr::Model { id, .. } => {
             // Get the model and verify it's a mesh
@@ -117,13 +113,7 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
 /// A model expression representing the created vertex
 #[lisp_fn("p")]
 fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    // Accept either 2 or 3 arguments
-    if args.len() != 2 && args.len() != 3 {
-        return Err(format!(
-            "vertex: expected 2 or 3 arguments, got {}",
-            args.len()
-        ));
-    }
+    assert_arg_count(args, 2..=3).map_err(|e| format!("vertex: {}", e))?;
 
     let mut coords = args
         .iter()
@@ -170,9 +160,7 @@ fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
 /// A model expression representing the created line (edge)
 #[lisp_fn]
 fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 2) {
-        return Err(e);
-    }
+    assert_arg_count(args, 2)?;
 
     let vertices = args
         .iter()
@@ -203,17 +191,12 @@ fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
 /// A model expression representing the created face
 #[lisp_fn("turtle")]
 fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.is_empty() {
-        return Err("turtle: expected at least one vertex".to_string());
-    }
+    assert_arg_count(args, 3..).map_err(|e| format!("turtle: {}", e))?;
 
     let vertices = args
         .iter()
         .map(|expr| extract::vertex(expr.as_ref(), &env))
         .collect::<Result<Vec<_>, String>>()?;
-    if vertices.len() < 3 {
-        return Err("turtle: expected at least three vertices to create a face".to_string());
-    }
 
     let mut edges = Vec::new();
 
@@ -276,9 +259,7 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
 /// A model expression representing the created circle wire
 #[lisp_fn]
 fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 3) {
-        return Err(e);
-    }
+    assert_arg_count(args, 3)?;
 
     let x = extract::number(args[0].as_ref())?;
     let y = extract::number(args[1].as_ref())?;
@@ -296,9 +277,7 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
 
 #[lisp_fn]
 fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 2) {
-        return Err(e);
-    }
+    assert_arg_count(args, 2)?;
 
     let face = extract::face(args[0].as_ref(), &env)?;
     let height = extract::number(args[1].as_ref())?;
@@ -309,9 +288,7 @@ fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
 
 #[lisp_fn]
 fn to_mesh(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if let Err(e) = assert_arg_count(args, 1) {
-        return Err(e);
-    }
+    assert_arg_count(args, 1)?;
 
     let solid = extract::solid(args[0].as_ref(), &env)?;
 
