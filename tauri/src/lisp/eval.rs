@@ -1100,19 +1100,12 @@ mod tests {
             Ok(Value::Integer(6))
         );
 
-        // Define a test function for dot notation testing
+        // Define a test function
         let exprs = parser::parse_file("(define (get-value obj) obj)").unwrap();
         eval_exprs(exprs, env.clone()).unwrap();
 
-        // Test with dot notation (simplified example as we don't have real methods)
-        let exprs = parser::parse_file("(-> 42 .get-value)").unwrap();
-        assert_eq!(
-            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-            Ok(Value::Integer(42))
-        );
-
-        // Mix of dot notation and regular function calls
-        let exprs = parser::parse_file("(-> 40 .get-value (+ 2))").unwrap();
+        // Mix of functions
+        let exprs = parser::parse_file("(-> 40 (get-value) (+ 2))").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Integer(42))

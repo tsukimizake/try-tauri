@@ -1,7 +1,7 @@
 (define edgelen 10)
 (define negedgelen (- 0 edgelen))
 
-(-> (turtle (p 0 0) (p edgelen 0) (p 0 negedgelen))
+(-> (turtle (p 0 0) (p edgelen 0) (p 0 negedgelen)) ; threading macro
     (linear_extrude 20)
     (to_mesh)
     (preview))

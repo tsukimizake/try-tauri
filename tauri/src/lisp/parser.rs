@@ -8,7 +8,7 @@ use nom::{character::complete::space0, combinator::recognize};
 use nom::{
     IResult,
     branch::alt,
-    bytes::complete::take_while1,
+    bytes::complete::{take_while, take_while1},
     character::complete::char,
     combinator::map,
     multi::many0,
@@ -565,6 +565,7 @@ pub enum Token<'a> {
     LParen(Span<'a>),
     RParen(Span<'a>),
     Newline(Span<'a>),
+    Comment(Span<'a>),
 }
 
 fn symbol(input: Span) -> IResult<Span, Token> {
@@ -625,14 +626,29 @@ fn newline(input: Span) -> IResult<Span, Token> {
     map(char('\n'), |_| Token::Newline(input))(input)
 }
 
+fn comment(input: Span) -> IResult<Span, Token> {
+    // A comment starts with a semicolon and consumes everything until a newline or end of input
+    let (input, _) = char(';')(input)?;
+    let (input, content) = take_while(|c| c != '\n')(input)?;
+    Ok((input, Token::Comment(content)))
+}
+
 fn tokenize(input: Span) -> IResult<Span, Vec<Token>> {
-    many0(delimited(
+    // First, collect all tokens including comments
+    let (input, all_tokens) = many0(delimited(
         space0,
         alt((
-            string, double, integer, symbol, quote, quasiquote, unquote, lparen, rparen, newline,
+            string, double, integer, symbol, quote, quasiquote, unquote, lparen, rparen, newline, comment,
         )),
         space0,
-    ))(input)
+    ))(input)?;
+    
+    // Then filter out comments
+    let tokens = all_tokens.into_iter()
+        .filter(|token| !matches!(token, Token::Comment(_)))
+        .collect();
+        
+    Ok((input, tokens))
 }
 #[cfg(test)]
 mod tokenize_tests {
@@ -641,6 +657,24 @@ mod tokenize_tests {
     fn test_newline() {
         let result = tokenize(Span::new("\n")).unwrap().1;
         assert_eq!(result, (vec![Token::Newline(Span::new("\n"))]));
+    }
+
+    #[test]
+    fn test_comment() {
+        // Comments should be removed from the token stream
+        let input = Span::new("; This is a comment\n(+ 1 2)");
+        let result = tokenize(input).unwrap().1;
+        
+        // The comment should be stripped, leaving only the expression tokens
+        assert_eq!(result.len(), 6); // Newline, LParen, Symbol(+), Integer(1), Integer(2), RParen
+        assert!(matches!(result[1], Token::LParen(_)));
+        
+        // Test inline comments
+        let input = Span::new("(+ 1 2) ; This is an inline comment\n(- 3 4)");
+        let result = tokenize(input).unwrap().1;
+        
+        // Should have tokens for both expressions, but no comment
+        assert_eq!(result.len(), 11); // 5 for first expr, newline, 5 for second expr
     }
 }
 
