@@ -1,4 +1,4 @@
-module Scene exposing (Model, Msg(..), preview, update, subscriptions)
+module Scene exposing (Model, Msg(..), preview, subscriptions, update)
 
 import Angle exposing (Angle)
 import Browser.Events
@@ -6,7 +6,6 @@ import Camera3d exposing (Camera3d)
 import Color
 import Direction3d
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (on)
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (Meters)
@@ -20,7 +19,7 @@ import Viewpoint3d
 
 
 type alias Model =
-    { azimuth : Angle
+    { rotatexy : Angle
     , elevation : Angle
     , distance : Float
     , orbiting : Bool
@@ -57,8 +56,8 @@ update message model =
                         Angle.degrees 1 |> Quantity.per Pixels.pixel
 
                     -- Adjust azimuth based on horizontal mouse motion
-                    newAzimuth =
-                        model.azimuth
+                    newRotatexy =
+                        model.rotatexy
                             |> Quantity.minus (dx |> Quantity.at rotationRate)
 
                     -- Adjust elevation based on vertical mouse motion
@@ -68,44 +67,50 @@ update message model =
                             |> Quantity.plus (dy |> Quantity.at rotationRate)
                             |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
                 in
-                { model | azimuth = newAzimuth, elevation = newElevation }
+                { model | rotatexy = newRotatexy, elevation = newElevation }
 
             else
                 model
-                
+
         -- Zoom with mouse wheel
         MouseWheel deltaY ->
             let
                 -- Adjust zoom based on wheel movement
                 -- Negative deltaY means wheel scrolled up (zoom in)
                 -- Positive deltaY means wheel scrolled down (zoom out)
-                zoomFactor = 0.005
-                newDistance = 
-                    model.distance * (1 + (deltaY * zoomFactor))
-                        |> max 1.0   -- Don't let camera get too close
-                        |> min 1000.0  -- Don't let camera get too far
+                zoomFactor =
+                    0.005
+
+                newDistance =
+                    model.distance
+                        * (1 + (deltaY * zoomFactor))
+                        -- Don't let camera get too close
+                        |> max 1.0
+                        -- Don't let camera get too far
+                        |> min 1000.0
             in
             { model | distance = newDistance }
 
 
+
 -- Decoder for mouse movement
+
+
 decodeMouseMove : Decoder Msg
 decodeMouseMove =
     Decode.map2 MouseMove
         (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
         (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
 
+
+
 -- Decoder for mouse wheel
-decodeMouseWheel : Decoder Msg
-decodeMouseWheel =
-    Decode.map MouseWheel
-        (Decode.field "deltaY" Decode.float)
-
-
 -- Custom event listener for wheel events
+
+
 onWheel : (Float -> msg) -> Attribute msg
 onWheel msg =
-    on "wheel" 
+    on "wheel"
         (Decode.map msg (Decode.field "deltaY" Decode.float))
 
 
@@ -117,6 +122,7 @@ subscriptions model =
             [ Browser.Events.onMouseMove decodeMouseMove
             , Browser.Events.onMouseUp (Decode.succeed MouseUp)
             ]
+
     else
         -- If we're not currently orbiting, just listen for mouse down events
         Browser.Events.onMouseDown (Decode.succeed MouseDown)
@@ -128,7 +134,7 @@ preview model entity stl =
         [ onWheel MouseWheel ]
         [ Scene3d.sunny
             { upDirection = Direction3d.z
-            , sunlightDirection = Direction3d.z
+            , sunlightDirection = Direction3d.xy model.rotatexy
             , shadows = True
             , dimensions = ( int 400, int 400 )
             , camera = orbitingCamera model
@@ -148,7 +154,7 @@ orbitingCamera model =
             Viewpoint3d.orbit
                 { focalPoint = Point3d.origin
                 , groundPlane = SketchPlane3d.xy
-                , azimuth = model.azimuth
+                , azimuth = model.rotatexy
                 , elevation = model.elevation
                 , distance = Length.meters model.distance
                 }

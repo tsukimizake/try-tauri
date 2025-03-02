@@ -39,7 +39,6 @@ config =
     [ Docs.ReviewAtDocs.rule
     , NoConfusingPrefixOperator.rule
     , NoMissingTypeAnnotation.rule
-    , NoMissingTypeAnnotationInLetIn.rule
     , NoMissingTypeExpose.rule
     , NoSimpleLetBody.rule
     , NoPrematureLetComputation.rule

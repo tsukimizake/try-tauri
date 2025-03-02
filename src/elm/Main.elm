@@ -59,14 +59,23 @@ type alias PreviewConfig =
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
-        viewPoint = ( 100, 100, 100 )
-        ( x, y, z ) = viewPoint
-        distance = sqrt (x * x + y * y + z * z)
-        azimuth = Angle.radians (atan2 y x)
-        elevation = Angle.radians (asin (z / distance))
+        viewPoint =
+            ( 100, 100, 100 )
+
+        ( x, y, z ) =
+            viewPoint
+
+        distance =
+            sqrt (x * x + y * y + z * z)
+
+        azimuth =
+            Angle.radians (atan2 y x)
+
+        elevation =
+            Angle.radians (asin (z / distance))
     in
-    { sceneModel = 
-        { azimuth = azimuth
+    { sceneModel =
+        { rotatexy = azimuth
         , elevation = elevation
         , distance = distance
         , orbiting = False
@@ -142,10 +151,11 @@ update msg mPrev =
             mPrev
                 |> s_sourceFilePath path
                 |> noCmd
-                
+
         SceneMsg sceneMsg ->
             let
-                updatedSceneModel = Scene.update sceneMsg mPrev.sceneModel
+                updatedSceneModel =
+                    Scene.update sceneMsg mPrev.sceneModel
             in
             mPrev
                 |> s_sceneModel updatedSceneModel
@@ -182,7 +192,7 @@ view model =
                 tri ( p, q, r ) =
                     Triangle3d.from (point p) (point q) (point r)
             in
-            Scene3d.facet (Material.matte Color.blue) (tri ( a, b, c ))
+            Scene3d.facet (Material.matte Color.lightBlue) (tri ( a, b, c ))
     in
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
