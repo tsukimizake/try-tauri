@@ -974,6 +974,11 @@ s_interpolatedUv value__ record__ =
     { record__ | interpolatedUv = value__ }
 
 
+s_isDragging : a -> { b | isDragging : a } -> { b | isDragging : a }
+s_isDragging value__ record__ =
+    { record__ | isDragging = value__ }
+
+
 s_isMerge : a -> { b | isMerge : a } -> { b | isMerge : a }
 s_isMerge value__ record__ =
     { record__ | isMerge = value__ }
@@ -1674,11 +1679,6 @@ s_options value__ record__ =
     { record__ | options = value__ }
 
 
-s_orbiting : a -> { b | orbiting : a } -> { b | orbiting : a }
-s_orbiting value__ record__ =
-    { record__ | orbiting = value__ }
-
-
 s_orientation : a -> { b | orientation : a } -> { b | orientation : a }
 s_orientation value__ record__ =
     { record__ | orientation = value__ }
@@ -2012,6 +2012,11 @@ s_rightBranch value__ record__ =
 s_rightEdge : a -> { b | rightEdge : a } -> { b | rightEdge : a }
 s_rightEdge value__ record__ =
     { record__ | rightEdge = value__ }
+
+
+s_rotatexy : a -> { b | rotatexy : a } -> { b | rotatexy : a }
+s_rotatexy value__ record__ =
+    { record__ | rotatexy = value__ }
 
 
 s_roughness : a -> { b | roughness : a } -> { b | roughness : a }

@@ -78,7 +78,7 @@ init _ =
         { rotatexy = azimuth
         , elevation = elevation
         , distance = distance
-        , orbiting = False
+        , isDragging = False
         , viewPoint = viewPoint
         }
     , sourceFilePath = "../hoge.lisp"

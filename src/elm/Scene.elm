@@ -22,7 +22,7 @@ type alias Model =
     { rotatexy : Angle
     , elevation : Angle
     , distance : Float
-    , orbiting : Bool
+    , isDragging : Bool
     , viewPoint : Vec
     }
 
@@ -37,17 +37,17 @@ type Msg
 update : Msg -> Model -> Model
 update message model =
     case message of
-        -- Start orbiting when a mouse button is pressed
+        -- Start dragging when a mouse button is pressed
         MouseDown ->
-            { model | orbiting = True }
+            { model | isDragging = True }
 
-        -- Stop orbiting when a mouse button is released
+        -- Stop dragging when a mouse button is released
         MouseUp ->
-            { model | orbiting = False }
+            { model | isDragging = False }
 
         -- Orbit camera on mouse move (if a mouse button is down)
         MouseMove dx dy ->
-            if model.orbiting then
+            if model.isDragging then
                 let
                     -- How fast we want to orbit the camera (orbiting the
                     -- camera by 1 degree per pixel of drag is a decent default
@@ -116,15 +116,15 @@ onWheel msg =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.orbiting then
-        -- If we're currently orbiting, listen for mouse moves and mouse button up events
+    if model.isDragging then
+        -- If we're currently dragging, listen for mouse moves and mouse button up events
         Sub.batch
             [ Browser.Events.onMouseMove decodeMouseMove
             , Browser.Events.onMouseUp (Decode.succeed MouseUp)
             ]
 
     else
-        -- If we're not currently orbiting, just listen for mouse down events
+        -- If we're not currently dragging, just listen for mouse down events
         Browser.Events.onMouseDown (Decode.succeed MouseDown)
 
 
