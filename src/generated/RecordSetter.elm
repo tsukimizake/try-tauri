@@ -1509,6 +1509,11 @@ s_month value__ record__ =
     { record__ | month = value__ }
 
 
+s_msg : a -> { b | msg : a } -> { b | msg : a }
+s_msg value__ record__ =
+    { record__ | msg = value__ }
+
+
 s_multiline : a -> { b | multiline : a } -> { b | multiline : a }
 s_multiline value__ record__ =
     { record__ | multiline = value__ }
@@ -1847,6 +1852,11 @@ s_position value__ record__ =
 s_preventDefault : a -> { b | preventDefault : a } -> { b | preventDefault : a }
 s_preventDefault value__ record__ =
     { record__ | preventDefault = value__ }
+
+
+s_previewId : a -> { b | previewId : a } -> { b | previewId : a }
+s_previewId value__ record__ =
+    { record__ | previewId = value__ }
 
 
 s_previews : a -> { b | previews : a } -> { b | previews : a }

@@ -5,7 +5,7 @@ import Basics.Extra exposing (..)
 import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
 import Color
-import Css exposing (absolute, backgroundColor, border, borderColor, borderRadius, borderStyle, borderWidth, bottom, color, cursor, fontFamily, height, hover, monospace, padding, padding2, pct, pointer, position, preWrap, px, relative, rgb, right, solid, whiteSpace, zero)
+import Css exposing (absolute, backgroundColor, border, borderColor, borderRadius, borderStyle, borderWidth, bottom, color, cursor, fontFamily, height, hover, left, monospace, padding, padding2, pct, pointer, position, preWrap, px, relative, rgb, right, solid, top, whiteSpace, zero)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css)
@@ -42,8 +42,7 @@ main =
 
 
 type alias Model =
-    { sceneModel : Scene.Model
-    , sourceFilePath : String
+    { sourceFilePath : String
     , sourceCode : String
     , console : List String
     , previews : List PreviewConfig
@@ -53,11 +52,23 @@ type alias Model =
 type alias PreviewConfig =
     { stlId : Int
     , stl : Stl
+    , isDragging : Bool
+    , sceneModel : Scene.Model
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
+    { sourceFilePath = "../hoge.lisp"
+    , sourceCode = ""
+    , console = []
+    , previews = []
+    }
+        |> withCmd (emit <| ToTauri (RequestCode "../hoge.lisp"))
+
+
+createPreviewConfig : Int -> Stl -> PreviewConfig
+createPreviewConfig id stl =
     let
         viewPoint =
             ( 100, 100, 100 )
@@ -74,19 +85,16 @@ init _ =
         elevation =
             Angle.radians (asin (z / distance))
     in
-    { sceneModel =
+    { stlId = id
+    , stl = stl
+    , isDragging = False
+    , sceneModel =
         { rotatexy = azimuth
         , elevation = elevation
         , distance = distance
-        , isDragging = False
         , viewPoint = viewPoint
         }
-    , sourceFilePath = "../hoge.lisp"
-    , sourceCode = ""
-    , console = []
-    , previews = []
     }
-        |> withCmd (emit <| ToTauri (RequestCode "../hoge.lisp"))
 
 
 emit : Msg -> Cmd Msg
@@ -102,7 +110,7 @@ type Msg
     = FromTauri Bindings.FromTauriCmdType
     | ToTauri Bindings.ToTauriCmdType
     | SetSourceFilePath String
-    | SceneMsg Scene.Msg
+    | SceneMsg Int Scene.Msg
     | ShowSaveDialog Int
 
 
@@ -130,7 +138,7 @@ update msg mPrev =
                                                 |> Maybe.map TauriCmd.decodeStl
                                         of
                                             Just stl ->
-                                                [ { stlId = id, stl = stl } ]
+                                                [ createPreviewConfig id stl ]
 
                                             Nothing ->
                                                 []
@@ -162,13 +170,30 @@ update msg mPrev =
                 |> s_sourceFilePath path
                 |> noCmd
 
-        SceneMsg sceneMsg ->
+        SceneMsg previewId sceneMsg ->
             let
-                updatedSceneModel =
-                    Scene.update sceneMsg mPrev.sceneModel
+                -- Update the isDragging field and sceneModel of the specified preview
+                updatedPreviews =
+                    List.map 
+                        (\preview -> 
+                            if preview.stlId == previewId then
+                                let
+                                    (updatedSceneModel, isDragging) = 
+                                        Scene.update sceneMsg preview.sceneModel
+                                        
+                                    -- Remove debug log since everything is working now
+                                in
+                                { preview | 
+                                  isDragging = isDragging, 
+                                  sceneModel = updatedSceneModel 
+                                }
+                            else
+                                preview
+                        ) 
+                        mPrev.previews
             in
             mPrev
-                |> s_sceneModel updatedSceneModel
+                |> s_previews updatedPreviews
                 |> noCmd
 
         ShowSaveDialog stlId ->
@@ -184,10 +209,28 @@ update msg mPrev =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
+    let
+        -- For any preview that is currently being dragged, we need mouse move and mouse up events
+        draggingSubs =
+            model.previews
+                |> List.filter .isDragging
+                |> List.map (\preview -> 
+                    Sub.map (SceneMsg preview.stlId) (Scene.subscriptions True)
+                )
+                
+        -- For all other previews, we need mouse down events to start dragging
+        nonDraggingSubs =
+            if List.any .isDragging model.previews then
+                -- If any preview is being dragged, don't listen for mouseDown on others
+                []
+            else
+                model.previews
+                    |> List.map (\preview ->
+                        Sub.map (SceneMsg preview.stlId) (Scene.subscriptions False)
+                    )
+    in
     Sub.batch
-        [ TauriCmd.fromTauri FromTauri
-        , Sub.map SceneMsg (Scene.subscriptions model.sceneModel)
-        ]
+        (TauriCmd.fromTauri FromTauri :: (draggingSubs ++ nonDraggingSubs))
 
 
 
@@ -212,9 +255,18 @@ view model =
 
         -- Create a preview with a save button for each STL model
         viewPreview : PreviewConfig -> Html Msg
-        viewPreview { stlId, stl } =
+        viewPreview preview =
+            let
+                { stlId, stl, sceneModel } = preview
+                
+                -- Label to show which preview is which
+                previewLabel = 
+                    "Preview #" ++ String.fromInt stlId
+            in
             div [ css [ position relative ] ]
-                [ Html.Styled.map SceneMsg (Scene.preview model.sceneModel entity stl)
+                [ div [ css [ position absolute, top (px 10), left (px 10), color (rgb 255 255 255) ] ]
+                    [ text previewLabel ]
+                , Html.Styled.map (SceneMsg stlId) (Scene.preview sceneModel entity stl)
                 , div
                     [ css
                         [ position absolute
@@ -275,3 +327,13 @@ view model =
 black : Css.Color
 black =
     rgb 0 0 0
+
+
+withCmd : Cmd msg -> model -> ( model, Cmd msg )
+withCmd cmd model =
+    ( model, cmd )
+
+
+noCmd : model -> ( model, Cmd msg )
+noCmd model =
+    ( model, Cmd.none )

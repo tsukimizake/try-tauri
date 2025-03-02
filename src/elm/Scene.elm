@@ -22,7 +22,6 @@ type alias Model =
     { rotatexy : Angle
     , elevation : Angle
     , distance : Float
-    , isDragging : Bool
     , viewPoint : Vec
     }
 
@@ -34,43 +33,40 @@ type Msg
     | MouseWheel Float
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Bool )
 update message model =
     case message of
         -- Start dragging when a mouse button is pressed
         MouseDown ->
-            { model | isDragging = True }
+            ( model, True )
 
         -- Stop dragging when a mouse button is released
         MouseUp ->
-            { model | isDragging = False }
+            ( model, False )
 
-        -- Orbit camera on mouse move (if a mouse button is down)
+        -- Orbit camera on mouse move
         MouseMove dx dy ->
-            if model.isDragging then
-                let
-                    -- How fast we want to orbit the camera (orbiting the
-                    -- camera by 1 degree per pixel of drag is a decent default
-                    -- to start with)
-                    rotationRate =
-                        Angle.degrees 1 |> Quantity.per Pixels.pixel
+            let
+                -- How fast we want to orbit the camera (orbiting the
+                -- camera by 1 degree per pixel of drag is a decent default
+                -- to start with)
+                rotationRate =
+                    Angle.degrees 1 |> Quantity.per Pixels.pixel
 
-                    -- Adjust azimuth based on horizontal mouse motion
-                    newRotatexy =
-                        model.rotatexy
-                            |> Quantity.minus (dx |> Quantity.at rotationRate)
+                -- Adjust azimuth based on horizontal mouse motion
+                newRotatexy =
+                    model.rotatexy
+                        |> Quantity.minus (dx |> Quantity.at rotationRate)
 
-                    -- Adjust elevation based on vertical mouse motion
-                    -- and clamp to avoid camera flipping over
-                    newElevation =
-                        model.elevation
-                            |> Quantity.plus (dy |> Quantity.at rotationRate)
-                            |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
-                in
-                { model | rotatexy = newRotatexy, elevation = newElevation }
-
-            else
-                model
+                -- Adjust elevation based on vertical mouse motion
+                -- and clamp to avoid camera flipping over
+                newElevation =
+                    model.elevation
+                        |> Quantity.plus (dy |> Quantity.at rotationRate)
+                        |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
+            in
+            -- Return updated model and keep isDragging as True
+            ( { model | rotatexy = newRotatexy, elevation = newElevation }, True )
 
         -- Zoom with mouse wheel
         MouseWheel deltaY ->
@@ -89,7 +85,7 @@ update message model =
                         -- Don't let camera get too far
                         |> min 1000.0
             in
-            { model | distance = newDistance }
+            ( { model | distance = newDistance }, False )
 
 
 
@@ -114,9 +110,9 @@ onWheel msg =
         (Decode.map msg (Decode.field "deltaY" Decode.float))
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    if model.isDragging then
+subscriptions : Bool -> Sub Msg
+subscriptions isDragging =
+    if isDragging then
         -- If we're currently dragging, listen for mouse moves and mouse button up events
         Sub.batch
             [ Browser.Events.onMouseMove decodeMouseMove
@@ -131,7 +127,9 @@ subscriptions model =
 preview : Model -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c } -> Html Msg
 preview model entity stl =
     div
-        [ onWheel MouseWheel ]
+        [ onWheel MouseWheel
+        , on "mousedown" (Decode.succeed MouseDown)  -- Add mousedown handler directly to this div
+        ]
         [ Scene3d.sunny
             { upDirection = Direction3d.z
             , sunlightDirection = Direction3d.xy model.rotatexy
