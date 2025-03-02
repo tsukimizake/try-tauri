@@ -400,9 +400,16 @@ pub mod extract {
 }
 
 inventory::collect!(LispPrimitive);
+inventory::collect!(LispSpecialForm);
 
 #[doc(hidden)]
 pub(crate) struct LispPrimitive {
+    pub name: &'static str,
+    pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
+}
+
+#[doc(hidden)]
+pub(crate) struct LispSpecialForm {
     pub name: &'static str,
     pub func: fn(&[Arc<Expr>], Arc<Mutex<crate::lisp::env::Env>>) -> Result<Arc<Expr>, String>,
 }

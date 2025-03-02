@@ -37,6 +37,7 @@ pub fn cast_evaled(expr: Arc<Expr>) -> Value {
         Expr::Quasiquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
         Expr::Unquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
         Expr::Builtin { name, .. } => Value::Symbol(format!("<builtin {}>", name)),
+        Expr::SpecialForm { name, .. } => Value::Symbol(format!("<special form {}>", name)),
         Expr::Clausure { .. } => Value::Symbol("<closure>".to_string()),
         Expr::Macro { .. } => Value::Symbol("<macro>".to_string()),
     }
@@ -90,6 +91,10 @@ pub enum Expr {
         trailing_newline: bool,
     },
     Builtin {
+        name: String,
+        fun: fn(&[Arc<Expr>], Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>,
+    },
+    SpecialForm {
         name: String,
         fun: fn(&[Arc<Expr>], Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>,
     },
@@ -224,6 +229,8 @@ impl PartialEq for Expr {
             ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
 
             (Builtin { name: n1, .. }, Builtin { name: n2, .. }) => n1 == n2,
+            
+            (SpecialForm { name: n1, .. }, SpecialForm { name: n2, .. }) => n1 == n2,
 
             (
                 Clausure {
@@ -400,6 +407,7 @@ impl Expr {
                 trailing_newline: b,
             },
             Expr::Builtin { .. } => self,
+            Expr::SpecialForm { .. } => self,
             Expr::Clausure { .. } => self,
             Expr::Macro { .. } => self,
         }
@@ -434,6 +442,7 @@ impl Expr {
                 trailing_newline, ..
             } => *trailing_newline,
             Expr::Builtin { .. } => false,
+            Expr::SpecialForm { .. } => false,
             Expr::Clausure { .. } => false,
             Expr::Macro { .. } => false,
         }
@@ -450,6 +459,7 @@ impl Expr {
             Expr::Quasiquote { location, .. } => *location,
             Expr::Unquote { location, .. } => *location,
             Expr::Builtin { .. } => None,
+            Expr::SpecialForm { .. } => None,
             Expr::Clausure { .. } => None,
             Expr::Macro { .. } => None,
         }
@@ -479,6 +489,7 @@ impl Expr {
             Expr::Quasiquote { expr, .. } => format!("`{}", expr.format()),
             Expr::Unquote { expr, .. } => format!("~{}", expr.format()),
             Expr::Builtin { name, .. } => format!("<builtin {}>", name),
+            Expr::SpecialForm { name, .. } => format!("<special form {}>", name),
             Expr::Clausure { args, body, .. } => {
                 let mut s = "(lambda (".to_string();
                 for (i, arg) in args.iter().enumerate() {
@@ -558,7 +569,7 @@ pub enum Token<'a> {
 
 fn symbol(input: Span) -> IResult<Span, Token> {
     map(
-        take_while1(|c: char| c.is_alphanumeric() || "_+-*/<>#".contains(c)),
+        take_while1(|c: char| c.is_alphanumeric() || "_+-*/<>#?!".contains(c)),
         Token::Symbol,
     )(input)
 }
