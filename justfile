@@ -3,6 +3,9 @@ set shell := ["nu", "-c"]
 test:
     cargo test --manifest-path tauri/Cargo.toml
 
+elm_compile:
+  npx elm make src/elm/Main.elm | ignore
+
 dev:
     bunx tauri dev
 

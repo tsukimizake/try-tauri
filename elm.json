@@ -18,6 +18,7 @@
             "ianmackenzie/elm-3d-scene": "1.0.2",
             "ianmackenzie/elm-geometry": "3.11.0",
             "ianmackenzie/elm-units": "2.10.0",
+            "jinjor/elm-debounce": "3.0.0",
             "rtfeldman/elm-css": "18.0.0"
         },
         "indirect": {
