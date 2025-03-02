@@ -285,8 +285,8 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
 fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2)?;
 
-    let height = extract::number(args[0].as_ref())?;
-    let face = extract::face(args[1].as_ref(), &env)?;
+    let face = extract::face(args[0].as_ref(), &env)?;
+    let height = extract::number(args[1].as_ref())?;
     let solid = truck_modeling::builder::tsweep(&*face, truck_modeling::Vector3::unit_z() * height);
 
     return_model(Arc::new(solid), env)

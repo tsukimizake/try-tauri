@@ -53,7 +53,10 @@ pub fn eval(expr: Arc<Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
         Expr::Quasiquote { expr, .. } => eval_quasiquote_wrapper(&(**expr), env),
         Expr::Unquote { .. } => Err("Unquote can only be used inside a quasiquote".to_string()),
         // For these types, we can just return the original expression
-        Expr::Builtin { .. } | Expr::SpecialForm { .. } | Expr::Clausure { .. } | Expr::Macro { .. } => Ok(expr),
+        Expr::Builtin { .. }
+        | Expr::SpecialForm { .. }
+        | Expr::Clausure { .. }
+        | Expr::Macro { .. } => Ok(expr),
     }
 }
 
@@ -645,9 +648,9 @@ fn prim_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Str
     assert_arg_count(args, 1)?;
     // Evaluate the argument first, since we need its value
     let arg = eval(args[0].clone(), env)?;
-    
+
     match arg.as_ref() {
-    Expr::List { elements, .. } => {
+        Expr::List { elements, .. } => {
             if elements.is_empty() {
                 Err("Cannot get first element of empty list".to_string())
             } else {
@@ -676,9 +679,13 @@ fn prim_rest(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
     assert_arg_count(args, 1)?;
     // Evaluate the argument first, since we need its value
     let arg = eval(args[0].clone(), env)?;
-    
+
     match arg.as_ref() {
-        Expr::List { elements, location, trailing_newline } => {
+        Expr::List {
+            elements,
+            location,
+            trailing_newline,
+        } => {
             if elements.is_empty() {
                 Ok(Arc::new(Expr::List {
                     elements: vec![],
@@ -717,11 +724,11 @@ fn prim_null_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     assert_arg_count(args, 1)?;
     // Evaluate the argument first, since we need its value
     let arg = eval(args[0].clone(), env)?;
-    
+
     match arg.as_ref() {
         Expr::List { elements, .. } => {
             if elements.is_empty() {
-            Ok(Arc::new(Expr::symbol("#t")))
+                Ok(Arc::new(Expr::symbol("#t")))
             } else {
                 Ok(Arc::new(Expr::symbol("#f")))
             }
@@ -730,6 +737,54 @@ fn prim_null_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
+#[lisp_sp_form("->")]
+fn thread_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    if args.len() < 2 {
+        return Err("-> requires at least 2 arguments".to_string());
+    }
+
+    // Evaluate the first argument
+    let mut value = eval(args[0].clone(), env.clone())?;
+
+    // Process each form in sequence
+    for form in &args[1..] {
+        match form.as_ref() {
+            // For list forms like (f arg1 arg2) -> (f value arg1 arg2)
+            Expr::List {
+                elements,
+                location,
+                trailing_newline,
+            } => {
+                if elements.is_empty() {
+                    return Err("Cannot thread into an empty list".to_string());
+                }
+
+                // Get the function and arguments
+                let func = elements[0].clone();
+                let func_args = &elements[1..];
+
+                // Create a new function call with value as the first argument
+                let mut new_elements = Vec::with_capacity(func_args.len() + 2);
+                new_elements.push(func);
+                new_elements.push(value.clone());
+                new_elements.extend_from_slice(func_args);
+
+                // Create the new expression
+                let new_expr = Arc::new(Expr::List {
+                    elements: new_elements,
+                    location: *location,
+                    trailing_newline: *trailing_newline,
+                });
+
+                // Evaluate the new expression
+                value = eval(new_expr, env.clone())?;
+            }
+            _ => return Err("Threading form must be a list".to_string()),
+        }
+    }
+
+    Ok(value)
+}
 #[cfg(test)]
 mod tests {
 
@@ -877,95 +932,94 @@ mod tests {
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(55)));
     }
-    
+
     #[test]
     fn test_defmacro() {
         let env = default_env();
-    let exprs = parser::parse_file(
-            "(defmacro (when cond body) `(if ~cond ~body #f)) (when (< 1 2) 3)",
-        )
-        .unwrap();
+        let exprs =
+            parser::parse_file("(defmacro (when cond body) `(if ~cond ~body #f)) (when (< 1 2) 3)")
+                .unwrap();
         let result = eval_exprs(exprs, env.clone());
         assert_eq!(result.map(|r| r.value.clone()), Ok(Value::Integer(3)));
-    }    
+    }
     #[test]
     fn test_quasiquote() {
         let env = default_env();
-    
+
         // Simple quasiquote with no unquote
         let exprs = parser::parse_file("`(1 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-match result.map(|r| r.value.clone()) {
+        match result.map(|r| r.value.clone()) {
             Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 3);
                 assert_eq!(items[0], Value::Integer(1));
                 assert_eq!(items[1], Value::Integer(2));
                 assert_eq!(items[2], Value::Integer(3));
-            },
+            }
             _ => panic!("Expected list"),
         }
-        
+
         // Qusiquote with unquote
         let exprs = parser::parse_file("(define x 42) `(1 ~x 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-match result.map(|r| r.value.clone()) {
+        match result.map(|r| r.value.clone()) {
             Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 3);
                 assert_eq!(items[0], Value::Integer(1));
                 assert_eq!(items[1], Value::Integer(42));
                 assert_eq!(items[2], Value::Integer(3));
-            },
+            }
             _ => panic!("Expected list"),
         }
-        
+
         // Siple case of quasiquote
         let exprs = parser::parse_file("`(1 2 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-match result.map(|r| r.value.clone()) {
+        match result.map(|r| r.value.clone()) {
             Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 3);
                 assert_eq!(items[0], Value::Integer(1));
                 assert_eq!(items[1], Value::Integer(2));
                 assert_eq!(items[2], Value::Integer(3));
-            },
+            }
             _ => panic!("Expected list"),
         }
-        
+
         // Usng unquote with a defined value
         let exprs = parser::parse_file("(define x 42) `(1 ~x 3)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-match result.map(|r| r.value.clone()) {
+        match result.map(|r| r.value.clone()) {
             Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 3);
                 assert_eq!(items[0], Value::Integer(1));
                 assert_eq!(items[1], Value::Integer(42));
                 assert_eq!(items[2], Value::Integer(3));
-            },
+            }
             _ => panic!("Expected list"),
         }
-        
+
         // Neted quasiquote/unquote - this tests proper nesting behavior
         let exprs = parser::parse_file("(define x 42) `(1 `(2 ~x) ~x)").unwrap();
         let result = eval_exprs(exprs, env.clone());
-match result.map(|r| r.value.clone()) {
+        match result.map(|r| r.value.clone()) {
             Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 3);
                 assert_eq!(items[0], Value::Integer(1));
-                
+
                 // The second item should be a quasiquoted list where the inner x is not evaluated
                 // because it's inside a nested quasiquote
                 match &items[1] {
-    Value::List(inner) => {
+                    Value::List(inner) => {
                         assert_eq!(inner.len(), 2);
                         assert_eq!(inner[0], Value::Integer(2));
                         assert_eq!(inner[1], Value::Symbol("x".to_string()));
-                    },
+                    }
                     _ => panic!("Expected inner list"),
                 }
-                
+
                 // The third item is directly unquoted, so it should be evaluated
                 assert_eq!(items[2], Value::Integer(42));
-            },
+            }
             _ => panic!("Expected list"),
         }
     }
@@ -973,183 +1027,102 @@ match result.map(|r| r.value.clone()) {
     #[test]
     fn test_list_functions() {
         let env = default_env();
-        
+
         // Test list?
         let exprs = parser::parse_file("(list? '(1 2 3))").unwrap();
         assert_eq!(
-    eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Symbol("#t".to_string()))
         );
-        
+
         let exprs = parser::parse_file("(list? 42)").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-    Ok(Value::Symbol("#f".to_string()))
+            Ok(Value::Symbol("#f".to_string()))
         );
-        
+
         // Test first/car
         let exprs = parser::parse_file("(car '(1 2 3))").unwrap();
         assert_eq!(
-    eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Integer(1))
         );
-        
+
         // Test rest/cdr
         let exprs = parser::parse_file("(cdr '(1 2 3))").unwrap();
         match eval_exprs(exprs, env.clone()).map(|r| r.value.clone()) {
-    Ok(Value::List(items)) => {
+            Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 2);
                 assert_eq!(items[0], Value::Integer(2));
                 assert_eq!(items[1], Value::Integer(3));
-            },
+            }
             _ => panic!("Expected list"),
         }
-        
+
         // Tet null?
         let exprs = parser::parse_file("(null? '())").unwrap();
         assert_eq!(
-    eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
             Ok(Value::Symbol("#t".to_string()))
         );
-        
+
         let exprs = parser::parse_file("(null? '(1 2 3))").unwrap();
         assert_eq!(
             eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-    Ok(Value::Symbol("#f".to_string()))
+            Ok(Value::Symbol("#f".to_string()))
         );
-        
+
         // Test empty list handling
         let exprs = parser::parse_file("(cdr '())").unwrap();
         match eval_exprs(exprs, env.clone()).map(|r| r.value.clone()) {
-    Ok(Value::List(items)) => {
+            Ok(Value::List(items)) => {
                 assert_eq!(items.len(), 0);
-            },
+            }
             _ => panic!("Expected empty list"),
         }
     }
-    
-    #[lisp_sp_form("->")]
-fn thread_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() < 2 {
-        return Err("-> requires at least 2 arguments".to_string());
+
+    #[test]
+    fn test_thread_macro() {
+        let env = default_env();
+
+        // Test basic threading with function call
+        let exprs = parser::parse_file("(-> 1 (+ 2))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(3))
+        );
+
+        // Test nested threading
+        let exprs = parser::parse_file("(-> 1 (+ 2) (+ 3))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(6))
+        );
+
+        // Define a test function for dot notation testing
+        let exprs = parser::parse_file("(define (get-value obj) obj)").unwrap();
+        eval_exprs(exprs, env.clone()).unwrap();
+
+        // Test with dot notation (simplified example as we don't have real methods)
+        let exprs = parser::parse_file("(-> 42 .get-value)").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(42))
+        );
+
+        // Mix of dot notation and regular function calls
+        let exprs = parser::parse_file("(-> 40 .get-value (+ 2))").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(42))
+        );
     }
 
-    // Evaluate the first argument
-    let mut value = eval(args[0].clone(), env.clone())?;
-
-    // Process each form in sequence
-    for form in &args[1..] {
-        match form.as_ref() {
-            // For list forms like (f arg1 arg2) -> (f value arg1 arg2)
-            Expr::List { elements, location, trailing_newline } => {
-                if elements.is_empty() {
-                    return Err("Cannot thread into an empty list".to_string());
-                }
-
-                // Get the function and arguments
-                let func = elements[0].clone();
-                let func_args = &elements[1..];
-
-                // Create a new function call with value as the first argument
-                let mut new_elements = Vec::with_capacity(func_args.len() + 2);
-                new_elements.push(func);
-                new_elements.push(value.clone());
-                new_elements.extend_from_slice(func_args);
-
-                // Create the new expression
-                let new_expr = Arc::new(Expr::List {
-                    elements: new_elements,
-                    location: *location,
-                    trailing_newline: *trailing_newline,
-                });
-
-                // Evaluate the new expression
-                value = eval(new_expr, env.clone())?;
-            },
-            // For dot access forms like .method -> ((dots method) value)
-            Expr::Symbol { name, location, trailing_newline } => {
-                if name.starts_with('.') {
-                    let method_name = name.trim_start_matches('.');
-                    
-                    // Create an expression for (method value)
-                    let new_expr = Arc::new(Expr::List {
-                        elements: vec![
-                            Arc::new(Expr::Symbol {
-                                name: method_name.to_string(),
-                                location: *location,
-                                trailing_newline: false,
-                            }),
-                            value.clone(),
-                        ],
-                        location: *location,
-                        trailing_newline: *trailing_newline,
-                    });
-                    
-                    // Evaluate the new expression
-                    value = eval(new_expr, env.clone())?;
-                } else {
-                    // For normal symbols like +, create (+ value)
-                    let new_expr = Arc::new(Expr::List {
-                        elements: vec![
-                            form.clone(),
-                            value.clone(),
-                        ],
-                        location: *location,
-                        trailing_newline: *trailing_newline,
-                    });
-                    
-                    // Evaluate the new expression
-                    value = eval(new_expr, env.clone())?;
-                }
-            },
-            _ => return Err("Threading form must be a list or symbol".to_string()),
-        }
-    }
-
-    Ok(value)
-}
-
-#[test]
-fn test_thread_macro() {
-    let env = default_env();
-    
-    // Test basic threading with function call
-    let exprs = parser::parse_file("(-> 1 (+ 2))").unwrap();
-    assert_eq!(
-        eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-        Ok(Value::Integer(3))
-    );
-    
-    // Test nested threading
-    let exprs = parser::parse_file("(-> 1 (+ 2) (+ 3))").unwrap();
-    assert_eq!(
-        eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-        Ok(Value::Integer(6))
-    );
-
-    // Define a test function for dot notation testing
-    let exprs = parser::parse_file("(define (get-value obj) obj)").unwrap();
-    eval_exprs(exprs, env.clone()).unwrap();
-    
-    // Test with dot notation (simplified example as we don't have real methods)
-    let exprs = parser::parse_file("(-> 42 .get-value)").unwrap();
-    assert_eq!(
-        eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-        Ok(Value::Integer(42))
-    );
-    
-    // Mix of dot notation and regular function calls
-    let exprs = parser::parse_file("(-> 40 .get-value (+ 2))").unwrap();
-    assert_eq!(
-        eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
-        Ok(Value::Integer(42))
-    );
-}
-    
     #[test]
     fn test_define_gc() {
         use truck_polymesh::{Faces, PolygonMesh};
-    let env = default_env();
+        let env = default_env();
 
         // Create and insert a test mesh
         let mesh = Arc::new(PolygonMesh::new(
