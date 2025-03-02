@@ -8,10 +8,16 @@ use inventory;
 use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 use truck_meshalgo::prelude::*;
-use truck_modeling::builder;
+use truck_modeling::{Point3, builder};
+
+fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    let model = model_into.into();
+    let id = env.lock().unwrap().insert_model(model);
+    Ok(Arc::new(Expr::model(id)))
+}
 
 fn add_stl_to_env(mesh: PolygonMesh, env: &Arc<Mutex<Env>>) -> Arc<Expr> {
-    let stl_obj = Arc::new(mesh);
+    let stl_obj = Model::Mesh(Arc::new(mesh));
     let stl_id = env.lock().unwrap().insert_model(stl_obj);
     Arc::new(Expr::model(stl_id))
 }
@@ -127,27 +133,18 @@ fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
         ));
     }
 
-    // Extract x, y coordinates from arguments using the utility function
     let mut coords = args
         .iter()
         .map(|expr| extract::number(expr.as_ref()))
         .collect::<Result<Vec<_>, String>>()?;
 
-    // If only 2 arguments were provided, add a default z-coordinate of 0.0
     if coords.len() == 2 {
         coords.push(0.0);
     }
 
-    // Create a new vertex with the given coordinates
     let point = truck_modeling::Point3::new(coords[0], coords[1], coords[2]);
     let vertex = truck_modeling::Vertex::new(point);
-
-    // Wrap in our type-safe model
-    let vertex_model = Model::Vertex(Arc::new(vertex));
-
-    // Add the vertex to the environment and return it as an expression
-    let vertex_id = env.lock().unwrap().insert_model(vertex_model);
-    Ok(Arc::new(Expr::model(vertex_id)))
+    return_model(Model::Vertex(Arc::new(vertex)), env)
 }
 
 /// Create a line between two vertices
@@ -185,21 +182,13 @@ fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
         return Err(e);
     }
 
-    // Extract vertices from arguments using the utility function
     let vertices = args
         .iter()
         .map(|expr| extract::vertex(expr.as_ref(), &env))
         .collect::<Result<Vec<_>, String>>()?;
 
-    // Create a new edge with the given vertices
     let edge = truck_modeling::builder::line(&vertices[0], &vertices[1]);
-
-    // Wrap in our type-safe model
-    let edge_model = Model::Edge(Arc::new(edge));
-
-    // Add the edge to the environment and return it as an expression
-    let edge_id = env.lock().unwrap().insert_model(edge_model);
-    Ok(Arc::new(Expr::model(edge_id)))
+    return_model(Model::Edge(Arc::new(edge)), env)
 }
 
 /// turtle_sketch to create a face from a sequence of vertices.
@@ -226,54 +215,38 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         return Err("turtle: expected at least one vertex".to_string());
     }
 
-    // Extract vertices from arguments using the utility function
     let vertices = args
         .iter()
         .map(|expr| extract::vertex(expr.as_ref(), &env))
         .collect::<Result<Vec<_>, String>>()?;
-
-    // Need at least three vertices to make a face
     if vertices.len() < 3 {
         return Err("turtle: expected at least three vertices to create a face".to_string());
     }
 
-    // Create edges using turtle graphics approach
     let mut edges = Vec::new();
 
-    // Start at the first vertex position
     let start_point = vertices[0].point();
     let mut current_point = start_point;
     let mut current_vertex = Arc::new(truck_modeling::Vertex::new(current_point));
-
-    // Create a list of points to track our path
     let mut path_points = vec![current_point];
 
-    // For each vertex after the first, treat it as a movement vector
     for i in 1..vertices.len() {
-        // Get the movement vector from the next vertex
         let movement = vertices[i].point();
-
-        // Add the movement to the current position
         let next_point = truck_modeling::Point3::new(
             current_point.x + movement.x,
             current_point.y + movement.y,
             current_point.z + movement.z,
         );
 
-        // Create a new vertex at the new position
         let next_vertex = Arc::new(truck_modeling::Vertex::new(next_point));
 
-        // Create an edge from current to next
         let edge = truck_modeling::builder::line(&current_vertex, &next_vertex);
         edges.push(edge);
-
-        // Update current position and vertex
         current_point = next_point;
         current_vertex = next_vertex;
         path_points.push(current_point);
     }
 
-    // Close the loop by connecting back to the start
     if path_points.len() >= 3 {
         let last_vertex = Arc::new(truck_modeling::Vertex::new(
             path_points.last().unwrap().clone(),
@@ -285,17 +258,10 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         edges.push(closing_edge);
     }
 
-    // Create a wire from the edges
     let wire = truck_modeling::Wire::from_iter(edges.into_iter());
 
-    // Create a face from the wire
     let face = truck_modeling::builder::try_attach_plane(&[wire]).unwrap();
-
-    let face_model = Model::Face(Arc::new(face));
-
-    // Add the face to the environment and return it as an expression
-    let face_id = env.lock().unwrap().insert_model(face_model);
-    Ok(Arc::new(Expr::model(face_id)))
+    return_model(Arc::new(face), env)
 }
 
 /// Create a circle wire in the XY plane
@@ -322,7 +288,6 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
         return Err(e);
     }
 
-    // Extract x, y, radius from arguments
     let x = extract::number(args[0].as_ref())?;
     let y = extract::number(args[1].as_ref())?;
     let radius = extract::number(args[2].as_ref())?;
@@ -333,15 +298,8 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
         Point3::new(x, y + radius, 0.0),
     );
 
-    // Then create a wire from the curve
     let wire = truck_modeling::Wire::from(vec![edge]);
-
-    // Wrap in our type-safe model
-    let wire_model = Model::Wire(Arc::new(wire));
-
-    // Add the wire to the environment and return it as an expression
-    let wire_id = env.lock().unwrap().insert_model(wire_model);
-    Ok(Arc::new(Expr::model(wire_id)))
+    return_model(Model::Wire(Arc::new(wire)), env)
 }
 
 #[lisp_fn]
@@ -350,21 +308,11 @@ fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
         return Err(e);
     }
 
-    // Extract the face and height from arguments using the utility function
     let face = extract::face(args[0].as_ref(), &env)?;
     let height = extract::number(args[1].as_ref())?;
-
-    // Extrude the face to create a solid
-    // Need to dereference the Arc to get the Face directly
-    // Also need to call unit_z() as it's a function
     let solid = truck_modeling::builder::tsweep(&*face, truck_modeling::Vector3::unit_z() * height);
 
-    // Wrap in our type-safe model
-    let solid_model = Model::Solid(Arc::new(solid));
-
-    // Add the solid to the environment and return it as an expression
-    let solid_id = env.lock().unwrap().insert_model(solid_model);
-    Ok(Arc::new(Expr::model(solid_id)))
+    return_model(Arc::new(solid), env)
 }
 
 #[lisp_fn]
@@ -373,16 +321,8 @@ fn to_mesh(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
         return Err(e);
     }
 
-    // Extract the solid from arguments using the utility function
     let solid = extract::solid(args[0].as_ref(), &env)?;
 
-    // Convert the solid to a polygon mesh
     let mesh = solid.triangulation(0.01).to_polygon();
-
-    // Wrap in our type-safe model
-    let mesh_model = Model::Mesh(Arc::new(mesh));
-
-    // Add the mesh to the environment and return it as an expression
-    let mesh_id = env.lock().unwrap().insert_model(mesh_model);
-    Ok(Arc::new(Expr::model(mesh_id)))
+    return_model(Arc::new(mesh), env)
 }
