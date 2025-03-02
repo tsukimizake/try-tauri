@@ -16,7 +16,6 @@ fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<A
     Ok(Arc::new(Expr::model(id)))
 }
 
-
 /// Load an STL file into the environment
 ///
 /// # Lisp Usage
@@ -41,9 +40,7 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
             if let Ok(mesh) =
                 truck_polymesh::stl::read(&reader, truck_polymesh::stl::StlType::Automatic)
             {
-                let stl = return_model(Model::Mesh(Arc::new(mesh)), env.clone())?;
-                env.lock().unwrap().insert("stl".to_string(), stl.clone());
-                Ok(stl)
+                return_model(Arc::new(mesh), env)
             } else {
                 Err("load_stl: failed to read file".to_string())
             }
