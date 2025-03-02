@@ -6,6 +6,8 @@ import Camera3d exposing (Camera3d)
 import Color
 import Direction3d
 import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (on)
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (Meters)
 import Pixels exposing (Pixels, int)
@@ -70,6 +72,20 @@ update message model =
 
             else
                 model
+                
+        -- Zoom with mouse wheel
+        MouseWheel deltaY ->
+            let
+                -- Adjust zoom based on wheel movement
+                -- Negative deltaY means wheel scrolled up (zoom in)
+                -- Positive deltaY means wheel scrolled down (zoom out)
+                zoomFactor = 0.005
+                newDistance = 
+                    model.distance * (1 + (deltaY * zoomFactor))
+                        |> max 1.0   -- Don't let camera get too close
+                        |> min 1000.0  -- Don't let camera get too far
+            in
+            { model | distance = newDistance }
 
 
 -- Decoder for mouse movement
@@ -78,6 +94,19 @@ decodeMouseMove =
     Decode.map2 MouseMove
         (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
         (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
+
+-- Decoder for mouse wheel
+decodeMouseWheel : Decoder Msg
+decodeMouseWheel =
+    Decode.map MouseWheel
+        (Decode.field "deltaY" Decode.float)
+
+
+-- Custom event listener for wheel events
+onWheel : (Float -> msg) -> Attribute msg
+onWheel msg =
+    on "wheel" 
+        (Decode.map msg (Decode.field "deltaY" Decode.float))
 
 
 subscriptions : Model -> Sub Msg
@@ -95,18 +124,21 @@ subscriptions model =
 
 preview : Model -> (c -> Scene3d.Entity coordinates) -> { d | triangles : List c } -> Html Msg
 preview model entity stl =
-    Scene3d.sunny
-        { upDirection = Direction3d.z
-        , sunlightDirection = Direction3d.z
-        , shadows = True
-        , dimensions = ( int 400, int 400 )
-        , camera = orbitingCamera model
-        , clipDepth = Length.meters 1
-        , background = backgroundColor Color.black
-        , entities =
-            List.map entity stl.triangles
-        }
-        |> Html.Styled.fromUnstyled
+    div
+        [ onWheel MouseWheel ]
+        [ Scene3d.sunny
+            { upDirection = Direction3d.z
+            , sunlightDirection = Direction3d.z
+            , shadows = True
+            , dimensions = ( int 400, int 400 )
+            , camera = orbitingCamera model
+            , clipDepth = Length.meters 1
+            , background = backgroundColor Color.black
+            , entities =
+                List.map entity stl.triangles
+            }
+            |> Html.Styled.fromUnstyled
+        ]
 
 
 orbitingCamera : Model -> Camera3d Meters coordinates
