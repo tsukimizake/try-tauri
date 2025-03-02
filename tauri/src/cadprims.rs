@@ -234,8 +234,10 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     }
 
     let wire = truck_modeling::Wire::from_iter(edges.into_iter());
+    println!("Wire: {:?}", wire);
 
-    let face = truck_modeling::builder::try_attach_plane(&[wire]).unwrap();
+    let face =
+        truck_modeling::builder::try_attach_plane(&[wire]).map_err(|e| format!("{:?}", e))?;
     return_model(Arc::new(face), env)
 }
 

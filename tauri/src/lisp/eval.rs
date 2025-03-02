@@ -108,6 +108,7 @@ fn eval_list(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
 // (define (add a b) (+ a b)) => (define add (lambda (a b) (+ a b)))
 // TODO: proper location and trailing_newline
 fn eval_define(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(elements, 3)?;
     match elements.get(1).map(|x| x.as_ref()) {
         Some(Expr::List {
             elements: fn_and_args,
@@ -142,9 +143,6 @@ fn eval_define(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>
 }
 
 fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if elements.len() != 3 {
-        return Err("define requires two arguments".to_string());
-    }
 
     match (elements[1].as_ref(), elements[2].clone()) {
         (Expr::Symbol { name, .. }, value) => {
@@ -190,9 +188,7 @@ fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<
 
 // (lambda (a b) (+ a b))
 fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if expr.len() != 3 {
-        return Err("lambda requires two arguments".to_string());
-    }
+    assert_arg_count(expr, 3)?;
     match (expr[1].as_ref(), expr[2].clone()) {
         (Expr::List { elements: args, .. }, body) => {
             let newenv = Env::make_child(&env);
@@ -218,9 +214,7 @@ fn eval_lambda(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
 }
 
 fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if expr.len() != 3 {
-        return Err("let requires two arguments".to_string());
-    }
+    assert_arg_count(expr, 3)?;
     match (expr[1].as_ref(), expr[2].clone()) {
         (
             Expr::List {
@@ -252,9 +246,7 @@ fn eval_let(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 
 // (if (< 1 2) 2 3)
 fn eval_if(expr: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if expr.len() != 4 {
-        return Err("if requires three arguments".to_string());
-    }
+    assert_arg_count(expr, 4)?;
 
     // Evaluate the condition first
     let condition = eval(expr[1].clone(), env.clone())?;
@@ -291,6 +283,7 @@ pub fn default_env() -> Env {
 
 #[lisp_fn("+")]
 fn prim_add(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 1..)?;
     args.iter()
         .try_fold(0, |acc, arg| match arg.as_ref() {
             Expr::Integer { value, .. } => Ok(acc + value),
@@ -302,9 +295,8 @@ fn prim_add(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
 
 #[lisp_fn("-")]
 fn prim_sub(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    let head = args
-        .first()
-        .ok_or("sub requires at least one argument".to_string())?;
+    assert_arg_count(args, 1..)?;
+    let head = args.first().unwrap();
     let tail = &args[1..];
     let head = match head.as_ref() {
         Expr::Integer { value, .. } => *value,
@@ -322,9 +314,7 @@ fn prim_sub(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
 
 #[lisp_fn("<")]
 fn prim_lessthan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 2 {
-        return Err("lessthan requires two arguments".to_string());
-    }
+    assert_arg_count(args, 2)?;
     match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a < b { "#t" } else { "#f" })))
@@ -335,9 +325,7 @@ fn prim_lessthan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
 
 #[lisp_fn(">")]
 fn prim_morethan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 2 {
-        return Err("morethan requires two arguments".to_string());
-    }
+    assert_arg_count(args, 2)?;
     match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a > b { "#t" } else { "#f" })))
@@ -348,9 +336,7 @@ fn prim_morethan(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
 
 #[lisp_fn("<=")]
 fn prim_lessthanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 2 {
-        return Err("lessthanoreq requires two arguments".to_string());
-    }
+    assert_arg_count(args, 2)?;
     match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a <= b { "#t" } else { "#f" })))
@@ -361,9 +347,7 @@ fn prim_lessthanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Ex
 
 #[lisp_fn(">=")]
 fn prim_morethanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() != 2 {
-        return Err("morethanoreq requires two arguments".to_string());
-    }
+    assert_arg_count(args, 2)?;
     match (args[0].as_ref(), args[1].as_ref()) {
         (Expr::Integer { value: a, .. }, Expr::Integer { value: b, .. }) => {
             Ok(Arc::new(Expr::symbol(if a >= b { "#t" } else { "#f" })))
@@ -372,29 +356,71 @@ fn prim_morethanoreq(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Ex
     }
 }
 
-pub fn assert_arg_count(args: &[Arc<Expr>], count: impl RangeBounds<usize>) -> Result<(), String> {
-    if !count.contains(&args.len()) {
-        let error_msg = match (count.start_bound(), count.end_bound()) {
-            (Bound::Included(min), Bound::Included(max)) => {
-                if min == max {
-                    format!("expected {} arguments, got {}", min, args.len())
-                } else {
-                    format!("expected {} to {} arguments, got {}", min, max, args.len())
-                }
-            },
-            (Bound::Included(min), Bound::Excluded(max)) => {
-                format!("expected {} to {} arguments, got {}", min, max - 1, args.len())
-            },
-            (Bound::Included(min), Bound::Unbounded) => {
+enum ArgCount {
+    Exact(usize),
+    Range(usize, usize),
+    AtLeast(usize),
+    AtMost(usize),
+}
+
+impl ArgCount {
+    fn contains(&self, n: &usize) -> bool {
+        match self {
+            ArgCount::Exact(count) => n == count,
+            ArgCount::Range(min, max) => n >= min && n <= max,
+            ArgCount::AtLeast(min) => n >= min,
+            ArgCount::AtMost(max) => n <= max,
+        }
+    }
+}
+
+impl From<usize> for ArgCount {
+    fn from(n: usize) -> Self {
+        ArgCount::Exact(n)
+    }
+}
+
+impl From<std::ops::RangeInclusive<usize>> for ArgCount {
+    fn from(r: std::ops::RangeInclusive<usize>) -> Self {
+        let (min, max) = r.into_inner();
+        ArgCount::Range(min, max)
+    }
+}
+
+impl From<std::ops::RangeFrom<usize>> for ArgCount {
+    fn from(r: std::ops::RangeFrom<usize>) -> Self {
+        ArgCount::AtLeast(r.start)
+    }
+}
+
+impl From<std::ops::RangeTo<usize>> for ArgCount {
+    fn from(r: std::ops::RangeTo<usize>) -> Self {
+        ArgCount::AtMost(r.end - 1)
+    }
+}
+
+impl From<std::ops::RangeToInclusive<usize>> for ArgCount {
+    fn from(r: std::ops::RangeToInclusive<usize>) -> Self {
+        ArgCount::AtMost(r.end)
+    }
+}
+
+pub fn assert_arg_count(args: &[Arc<Expr>], range: impl Into<ArgCount>) -> Result<(), String> {
+    let range = range.into();
+    if !range.contains(&args.len()) {
+        let error_msg = match range {
+            ArgCount::Exact(n) => {
+                format!("expected {} arguments, got {}", n, args.len())
+            }
+            ArgCount::Range(min, max) => {
+                format!("expected {} to {} arguments, got {}", min, max, args.len())
+            }
+            ArgCount::AtLeast(min) => {
                 format!("expected at least {} arguments, got {}", min, args.len())
-            },
-            (Bound::Unbounded, Bound::Included(max)) => {
+            }
+            ArgCount::AtMost(max) => {
                 format!("expected at most {} arguments, got {}", max, args.len())
-            },
-            (Bound::Unbounded, Bound::Excluded(max)) => {
-                format!("expected at most {} arguments, got {}", max - 1, args.len())
-            },
-            _ => format!("invalid number of arguments: got {}", args.len()),
+            }
         };
         return Err(error_msg);
     }
