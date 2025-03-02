@@ -265,9 +265,8 @@ view model =
                 { stlId, stl, sceneModel } =
                     preview
 
-                -- Label to show which preview is which
                 previewLabel =
-                    "Preview #" ++ String.fromInt stlId
+                    "Model Id" ++ String.fromInt stlId
             in
             div [ css [ position relative ] ]
                 [ div [ css [ position absolute, top (px 10), left (px 10), color (rgb 255 255 255) ] ]
