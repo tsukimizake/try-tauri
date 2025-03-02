@@ -1,5 +1,3 @@
-(define width 5)
-(define negwidth (- 0 width))
 (define edgelen 10)
 (define negedgelen (- 0 edgelen))
-(preview (to_mesh (linear_extrude (turtle (p 0 0) (p edgelen 0) (p 0 negedgelen) ) 20)))
+(preview (to_mesh (linear_extrude 20 (turtle (p 0 0) (p edgelen 0) (p 0 negedgelen)))))

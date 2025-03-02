@@ -9,6 +9,9 @@ use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 use truck_meshalgo::prelude::*;
 use truck_modeling::{Point3, builder};
+use truck_topology::EdgeDisplayFormat;
+use truck_topology::VertexDisplayFormat;
+use truck_topology::WireDisplayFormat;
 
 fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let model = model_into.into();
@@ -82,38 +85,38 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
     }
 }
 
-/// Create a vertex at the specified coordinates
+/// Create a point at the specified coordinates
 ///
 /// # Lisp Usage
 ///
-/// This function is available as both `vertex` and `p` in Lisp:
+/// This function is available as both `point` and `p` in Lisp:
 ///
 /// ```lisp
-/// (vertex x y z)  ;; Using the full name with 3 coordinates
-/// (vertex x y)    ;; Using the full name with 2 coordinates (z=0)
-/// (p x y z)       ;; Using the shorthand alias with 3 coordinates
-/// (p x y)         ;; Using the shorthand alias with 2 coordinates (z=0)
+/// (point x y z)  ;; Using the full name with 3 coordinates
+/// (point x y)    ;; Using the full name with 2 coordinates (z=0)
+/// (p x y z)      ;; Using the shorthand alias with 3 coordinates
+/// (p x y)        ;; Using the shorthand alias with 2 coordinates (z=0)
 /// ```
 ///
 /// # Examples
 ///
 /// ```lisp
-/// (vertex 1 2 3)  ;; Create a vertex at (1, 2, 3)
-/// (p 0 0 0)       ;; Create a vertex at origin using the shorthand
-/// (p 10 5)        ;; Create a vertex at (10, 5, 0) - z defaults to 0
+/// (point 1 2 3)  ;; Create a point at (1, 2, 3)
+/// (p 0 0 0)      ;; Create a point at origin using the shorthand
+/// (p 10 5)       ;; Create a point at (10, 5, 0) - z defaults to 0
 ///
-/// ;; Create multiple vertices
-/// (define v1 (p 0 0 0))
-/// (define v2 (p 1 0))    ;; z defaults to 0
-/// (define v3 (p 0 1 0))
+/// ;; Create multiple points
+/// (define p1 (p 0 0 0))
+/// (define p2 (p 1 0))    ;; z defaults to 0
+/// (define p3 (p 0 1 0))
 /// ```
 ///
 /// # Returns
 ///
-/// A model expression representing the created vertex
+/// A model expression representing the created point
 #[lisp_fn("p")]
-fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    assert_arg_count(args, 2..=3).map_err(|e| format!("vertex: {}", e))?;
+fn point(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 2..=3).map_err(|e| format!("point: {}", e))?;
 
     let mut coords = args
         .iter()
@@ -125,34 +128,33 @@ fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
     }
 
     let point = truck_modeling::Point3::new(coords[0], coords[1], coords[2]);
-    let vertex = truck_modeling::Vertex::new(point);
-    return_model(Model::Vertex(Arc::new(vertex)), env)
+    return_model(Model::Point3(point), env)
 }
 
-/// Create a line between two vertices
+/// Create a line between two points
 ///
 /// # Lisp Usage
 ///
 /// ```lisp
-/// (line vertex1 vertex2)
+/// (line point1 point2)
 /// ```
 ///
 /// # Examples
 ///
 /// ```lisp
-/// (define v1 (p 0 0 0))
-/// (define v2 (p 1 1 1))
-/// (line v1 v2)  ;; Create a line from origin to (1,1,1)
+/// (define p1 (p 0 0 0))
+/// (define p2 (p 1 1 1))
+/// (line p1 p2)  ;; Create a line from origin to (1,1,1)
 ///
 /// ;; Create a square using lines
-/// (define v1 (p 0 0 0))
-/// (define v2 (p 1 0 0))
-/// (define v3 (p 1 1 0))
-/// (define v4 (p 0 1 0))
-/// (define l1 (line v1 v2))
-/// (define l2 (line v2 v3))
-/// (define l3 (line v3 v4))
-/// (define l4 (line v4 v1))
+/// (define p1 (p 0 0 0))
+/// (define p2 (p 1 0 0))
+/// (define p3 (p 1 1 0))
+/// (define p4 (p 0 1 0))
+/// (define l1 (line p1 p2))
+/// (define l2 (line p2 p3))
+/// (define l3 (line p3 p4))
+/// (define l4 (line p4 p1))
 /// ```
 ///
 /// # Returns
@@ -162,21 +164,23 @@ fn vertex(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
 fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2)?;
 
-    let vertices = args
+    let points = args
         .iter()
-        .map(|expr| extract::vertex(expr.as_ref(), &env))
+        .map(|expr| extract::point3(expr.as_ref(), &env))
         .collect::<Result<Vec<_>, String>>()?;
 
-    let edge = truck_modeling::builder::line(&vertices[0], &vertices[1]);
+    let v1 = Arc::new(truck_modeling::Vertex::new(points[0]));
+    let v2 = Arc::new(truck_modeling::Vertex::new(points[1]));
+    let edge = truck_modeling::builder::line(&v1, &v2);
     return_model(Model::Edge(Arc::new(edge)), env)
 }
 
-/// turtle_sketch to create a face from a sequence of vertices.
+/// turtle_sketch to create a face from a sequence of points.
 ///
 /// # Lisp Usage
 ///
 /// ```lisp
-/// (turtle vertex1 vertex2 vertex3 ...)
+/// (turtle point1 point2 point3 ...)
 /// ```
 ///
 /// # Examples
@@ -193,20 +197,22 @@ fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
 fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 3..).map_err(|e| format!("turtle: {}", e))?;
 
-    let vertices = args
+    let points = args
         .iter()
-        .map(|expr| extract::vertex(expr.as_ref(), &env))
+        .map(|expr| extract::point3(expr.as_ref(), &env))
         .collect::<Result<Vec<_>, String>>()?;
 
     let mut edges = Vec::new();
 
-    let start_point = vertices[0].point();
-    let mut current_point = start_point;
-    let mut current_vertex = Arc::new(truck_modeling::Vertex::new(current_point));
-    let mut path_points = vec![current_point];
+    // Create vertices from points
+    let mut vertices: Vec<Arc<truck_modeling::Vertex>> = Vec::new();
+    let mut current_point = points[0];
 
-    for i in 1..vertices.len() {
-        let movement = vertices[i].point();
+    let first_vertex = Arc::new(truck_modeling::Vertex::new(current_point));
+    vertices.push(first_vertex.clone());
+
+    for i in 1..points.len() {
+        let movement = points[i];
         let next_point = truck_modeling::Point3::new(
             current_point.x + movement.x,
             current_point.y + movement.y,
@@ -214,30 +220,25 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
         );
 
         let next_vertex = Arc::new(truck_modeling::Vertex::new(next_point));
-
-        let edge = truck_modeling::builder::line(&current_vertex, &next_vertex);
-        edges.push(edge);
+        vertices.push(next_vertex);
         current_point = next_point;
-        current_vertex = next_vertex;
-        path_points.push(current_point);
     }
 
-    if path_points.len() >= 3 {
-        let last_vertex = Arc::new(truck_modeling::Vertex::new(
-            path_points.last().unwrap().clone(),
-        ));
-        let first_vertex = Arc::new(truck_modeling::Vertex::new(
-            path_points.first().unwrap().clone(),
-        ));
-        let closing_edge = truck_modeling::builder::line(&last_vertex, &first_vertex);
-        edges.push(closing_edge);
+    // Create edges between vertices
+    for i in 0..vertices.len() - 1 {
+        let edge = truck_modeling::builder::line(&vertices[i], &vertices[i + 1]);
+        edges.push(edge);
     }
+
+    // Create closing edge
+    let closing_edge = truck_modeling::builder::line(&vertices.last().unwrap(), &vertices[0]);
+    edges.push(closing_edge);
 
     let wire = truck_modeling::Wire::from_iter(edges.into_iter());
-    println!("Wire: {:?}", wire);
 
     let face =
         truck_modeling::builder::try_attach_plane(&[wire]).map_err(|e| format!("{:?}", e))?;
+
     return_model(Arc::new(face), env)
 }
 
@@ -267,22 +268,25 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
     let y = extract::number(args[1].as_ref())?;
     let radius = extract::number(args[2].as_ref())?;
 
-    let edge = truck_modeling::builder::circle_arc(
-        &builder::vertex(Point3::new(x - radius, y, 0.0)),
-        &builder::vertex(Point3::new(x - radius, y, 0.0)),
-        Point3::new(x + radius, y, 0.0),
-    );
+    let v1 = builder::vertex(Point3::new(x - radius, y, 0.0));
+    let v2 = builder::vertex(Point3::new(x, y, 0.0));
+    let p3 = Point3::new(x + radius, y, 0.0);
+
+    let edge = truck_modeling::builder::circle_arc(&v1, &v2, p3);
 
     let wire = truck_modeling::Wire::from(vec![edge]);
-    return_model(Model::Wire(Arc::new(wire)), env)
+    let face =
+        truck_modeling::builder::try_attach_plane(&[wire]).map_err(|e| format!("{:?}", e))?;
+
+    return_model(Model::Face(Arc::new(face)), env)
 }
 
 #[lisp_fn]
 fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2)?;
 
-    let face = extract::face(args[0].as_ref(), &env)?;
-    let height = extract::number(args[1].as_ref())?;
+    let height = extract::number(args[0].as_ref())?;
+    let face = extract::face(args[1].as_ref(), &env)?;
     let solid = truck_modeling::builder::tsweep(&*face, truck_modeling::Vector3::unit_z() * height);
 
     return_model(Arc::new(solid), env)
@@ -296,4 +300,21 @@ fn to_mesh(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
 
     let mesh = solid.triangulation(0.01).to_polygon();
     return_model(Arc::new(mesh), env)
+}
+
+#[lisp_fn]
+fn sandbox(_: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    let wire = truck_modeling::Wire::from(vec![]);
+    let face =
+        truck_modeling::builder::try_attach_plane(&[wire]).map_err(|e| format!("{:?}", e))?;
+    let solid = truck_modeling::builder::tsweep(&face, truck_modeling::Vector3::unit_z());
+    let mesh = solid.triangulation(0.01).to_polygon();
+    return_model(Arc::new(mesh), env)
+}
+
+fn debug(wire: &truck_modeling::Wire) {
+    let vertex_format = VertexDisplayFormat::Full;
+    let _edge_format = EdgeDisplayFormat::Full { vertex_format };
+    let wire_format = WireDisplayFormat::VerticesList { vertex_format };
+    println!("{:?}", wire.display(wire_format));
 }

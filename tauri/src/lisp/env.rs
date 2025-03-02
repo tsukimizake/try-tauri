@@ -12,6 +12,7 @@ pub type ModelId = usize;
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Model {
+    Point3(truck_modeling::Point3),
     Vertex(Arc<truck_modeling::Vertex>),
     Edge(Arc<truck_modeling::Edge>),
     Wire(Arc<truck_modeling::Wire>),
@@ -131,6 +132,13 @@ impl From<Arc<truck_polymesh::PolygonMesh>> for Model {
 
 // Methods to safely extract specific model types
 impl Model {
+    pub fn as_point3(&self) -> Option<&truck_modeling::Point3> {
+        match self {
+            Model::Point3(p) => Some(p),
+            _ => None,
+        }
+    }
+
     pub fn as_vertex(&self) -> Option<&Arc<truck_modeling::Vertex>> {
         match self {
             Model::Vertex(v) => Some(v),
@@ -309,7 +317,12 @@ pub mod extract {
     }
 
     /// Extract a model from an expression and get a specific type
-    pub fn model<F, T>(expr: &Expr, env: &Arc<Mutex<Env>>, extractor: F, type_name: &str) -> Result<T, String>
+    pub fn model<F, T>(
+        expr: &Expr,
+        env: &Arc<Mutex<Env>>,
+        extractor: F,
+        type_name: &str,
+    ) -> Result<T, String>
     where
         F: FnOnce(&Model) -> Option<T>,
     {
@@ -320,16 +333,18 @@ pub mod extract {
                     .unwrap()
                     .get_model(*id)
                     .ok_or_else(|| format!("Model with id {} not found", id))?;
-                
-                extractor(model.as_ref())
-                    .ok_or_else(|| format!("Expected {} model", type_name))
+
+                extractor(model.as_ref()).ok_or_else(|| format!("Expected {} model", type_name))
             }
             _ => Err(format!("Expected model, got {:?}", expr)),
         }
     }
 
     /// Extract a vertex from an expression
-    pub fn vertex(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_modeling::Vertex>, String> {
+    pub fn vertex(
+        expr: &Expr,
+        env: &Arc<Mutex<Env>>,
+    ) -> Result<Arc<truck_modeling::Vertex>, String> {
         model(expr, env, |m| m.as_vertex().cloned(), "vertex")
     }
 
@@ -359,8 +374,19 @@ pub mod extract {
     }
 
     /// Extract a mesh from an expression
-    pub fn mesh(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<Arc<truck_polymesh::PolygonMesh>, String> {
+    pub fn mesh(
+        expr: &Expr,
+        env: &Arc<Mutex<Env>>,
+    ) -> Result<Arc<truck_polymesh::PolygonMesh>, String> {
         model(expr, env, |m| m.as_mesh().cloned(), "mesh")
+    }
+
+    /// Extract a point3 from an expression
+    pub fn point3(
+        expr: &Expr,
+        env: &Arc<Mutex<Env>>,
+    ) -> Result<truck_modeling::Point3, String> {
+        model(expr, env, |m| m.as_point3().cloned(), "point3")
     }
 }
 

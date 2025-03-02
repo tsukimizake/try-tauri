@@ -143,7 +143,6 @@ fn eval_define(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>
 }
 
 fn eval_define_impl(elements: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-
     match (elements[1].as_ref(), elements[2].clone()) {
         (Expr::Symbol { name, .. }, value) => {
             // Evaluate the value first
