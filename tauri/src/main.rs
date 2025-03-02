@@ -5,6 +5,7 @@ mod elm_interface;
 mod lisp;
 
 mod cadprims;
+mod stl;
 use std::sync::{Arc, Mutex};
 use tauri::Emitter; // TODO use emit_to?
 
@@ -52,6 +53,27 @@ fn from_elm(
             state.lisp_env.lock().unwrap().collect_garbage();
             to_elm(window, result);
             Ok(())
+        }
+        ToTauriCmdType::SaveStlFile(stl_id, filepath) => {
+            let env_lock = state.lisp_env.lock().unwrap();
+            match env_lock.get_model(stl_id) {
+                Some(model) => {
+                    match stl::save_stl_file(model.as_ref(), &filepath) {
+                        Ok(_) => {
+                            to_elm(window, FromTauriCmdType::SaveStlFileOk(format!("Successfully saved to {}", filepath)));
+                            Ok(())
+                        },
+                        Err(err) => {
+                            to_elm(window, FromTauriCmdType::SaveStlFileError(format!("Error saving file: {}", err)));
+                            Ok(())
+                        }
+                    }
+                }
+                None => {
+                    to_elm(window, FromTauriCmdType::SaveStlFileError(format!("Model ID {} not found", stl_id)));
+                    Ok(())
+                }
+            }
         }
     }
 }

@@ -5,7 +5,7 @@ import Basics.Extra exposing (..)
 import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
 import Color
-import Css exposing (borderColor, borderStyle, borderWidth, fontFamily, height, monospace, padding, pct, preWrap, px, rgb, solid, whiteSpace)
+import Css exposing (absolute, backgroundColor, border, borderColor, borderRadius, borderStyle, borderWidth, bottom, color, cursor, fontFamily, height, hover, monospace, padding, padding2, pct, pointer, position, preWrap, px, relative, rgb, right, solid, whiteSpace, zero)
 import Css.Extra exposing (..)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css)
@@ -103,6 +103,7 @@ type Msg
     | ToTauri Bindings.ToTauriCmdType
     | SetSourceFilePath String
     | SceneMsg Scene.Msg
+    | ShowSaveDialog Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,7 +118,6 @@ update msg mPrev =
 
                 EvalOk res ->
                     mPrev
-                        |> s_console (Debug.toString res.value :: mPrev.console)
                         |> s_previews
                             (res.previews
                                 |> List.concatMap
@@ -143,6 +143,16 @@ update msg mPrev =
                         |> s_console (err :: mPrev.console)
                         |> noCmd
 
+                SaveStlFileOk message ->
+                    mPrev
+                        |> s_console (message :: mPrev.console)
+                        |> noCmd
+
+                SaveStlFileError error ->
+                    mPrev
+                        |> s_console (error :: mPrev.console)
+                        |> noCmd
+
         ToTauri cmd ->
             mPrev
                 |> withCmd (TauriCmd.toTauri cmd)
@@ -160,6 +170,12 @@ update msg mPrev =
             mPrev
                 |> s_sceneModel updatedSceneModel
                 |> noCmd
+
+        ShowSaveDialog stlId ->
+            -- For simplicity, just use a hardcoded filename
+            -- In a real implementation, you would use a file dialog here
+            mPrev
+                |> withCmd (TauriCmd.toTauri (Bindings.SaveStlFile stlId "output.stl"))
 
 
 
@@ -193,12 +209,38 @@ view model =
                     Triangle3d.from (point p) (point q) (point r)
             in
             Scene3d.facet (Material.matte Color.lightBlue) (tri ( a, b, c ))
+
+        -- Create a preview with a save button for each STL model
+        viewPreview : PreviewConfig -> Html Msg
+        viewPreview { stlId, stl } =
+            div [ css [ position relative ] ]
+                [ Html.Styled.map SceneMsg (Scene.preview model.sceneModel entity stl)
+                , div
+                    [ css
+                        [ position absolute
+                        , bottom (px 10)
+                        , right (px 10)
+                        ]
+                    ]
+                    [ button
+                        [ onClick (ShowSaveDialog stlId)
+                        , css
+                            [ backgroundColor (rgb 70 130 180)
+                            , color (rgb 255 255 255)
+                            , padding2 (px 8) (px 12)
+                            , borderRadius (px 4)
+                            , border zero
+                            , cursor pointer
+                            , hover [ backgroundColor (rgb 50 110 160) ]
+                            ]
+                        ]
+                        [ text "Save as STL" ]
+                    ]
+                ]
     in
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
-            (model.previews
-                |> List.map (\{ stl } -> Html.Styled.map SceneMsg (Scene.preview model.sceneModel entity stl))
-            )
+            (model.previews |> List.map viewPreview)
         , div []
             [ text "file path"
             , textInput model.sourceFilePath SetSourceFilePath

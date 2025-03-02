@@ -28,7 +28,6 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 await listen("tauri_msg", (e) => {
-  console.log(e);
   app.ports.fromTauriMsg.send(e.payload);
 });
 

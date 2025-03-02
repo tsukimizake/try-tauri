@@ -31,6 +31,7 @@ resultDecoder errDecoder okDecoder =
 type ToTauriCmdType
     = RequestCode (String)
     | RequestEval
+    | SaveStlFile (Int) (String)
 
 
 toTauriCmdTypeEncoder : ToTauriCmdType -> Json.Encode.Value
@@ -40,11 +41,15 @@ toTauriCmdTypeEncoder enum =
             Json.Encode.object [ ( "t", Json.Encode.string "RequestCode"), ( "c", Json.Encode.string inner ) ]
         RequestEval ->
             Json.Encode.object [ ( "t", Json.Encode.string "RequestEval" ) ]
+        SaveStlFile t0 t1 ->
+            Json.Encode.object [ ( "t", Json.Encode.string "SaveStlFile"), ( "c", Json.Encode.list identity [ Json.Encode.int t0, Json.Encode.string t1 ] ) ]
 
 type FromTauriCmdType
     = Code (String)
     | EvalOk (Evaled)
     | EvalError (String)
+    | SaveStlFileOk (String)
+    | SaveStlFileError (String)
 
 
 fromTauriCmdTypeEncoder : FromTauriCmdType -> Json.Encode.Value
@@ -56,6 +61,10 @@ fromTauriCmdTypeEncoder enum =
             Json.Encode.object [ ( "t", Json.Encode.string "EvalOk"), ( "c", evaledEncoder inner ) ]
         EvalError inner ->
             Json.Encode.object [ ( "t", Json.Encode.string "EvalError"), ( "c", Json.Encode.string inner ) ]
+        SaveStlFileOk inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "SaveStlFileOk"), ( "c", Json.Encode.string inner ) ]
+        SaveStlFileError inner ->
+            Json.Encode.object [ ( "t", Json.Encode.string "SaveStlFileError"), ( "c", Json.Encode.string inner ) ]
 
 type alias Evaled =
     { value : Value
@@ -126,6 +135,8 @@ toTauriCmdTypeDecoder =
                         Json.Decode.map RequestCode (Json.Decode.field "c" (Json.Decode.string))
                     "RequestEval" ->
                         Json.Decode.succeed RequestEval
+                    "SaveStlFile" ->
+                        Json.Decode.field "c" (Json.Decode.succeed SaveStlFile |> Json.Decode.andThen (\x -> Json.Decode.index 0 (Json.Decode.int) |> Json.Decode.map x) |> Json.Decode.andThen (\x -> Json.Decode.index 1 (Json.Decode.string) |> Json.Decode.map x))
                     unexpected ->
                         Json.Decode.fail <| "Unexpected variant " ++ unexpected
             )
@@ -142,6 +153,10 @@ fromTauriCmdTypeDecoder =
                         Json.Decode.map EvalOk (Json.Decode.field "c" (evaledDecoder))
                     "EvalError" ->
                         Json.Decode.map EvalError (Json.Decode.field "c" (Json.Decode.string))
+                    "SaveStlFileOk" ->
+                        Json.Decode.map SaveStlFileOk (Json.Decode.field "c" (Json.Decode.string))
+                    "SaveStlFileError" ->
+                        Json.Decode.map SaveStlFileError (Json.Decode.field "c" (Json.Decode.string))
                     unexpected ->
                         Json.Decode.fail <| "Unexpected variant " ++ unexpected
             )
