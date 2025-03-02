@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Angle
 import Basics.Extra exposing (..)
 import Bindings exposing (FromTauriCmdType(..), ToTauriCmdType(..))
 import Browser
@@ -41,7 +42,7 @@ main =
 
 
 type alias Model =
-    { viewPoint : Vec
+    { sceneModel : Scene.Model
     , sourceFilePath : String
     , sourceCode : String
     , console : List String
@@ -57,7 +58,20 @@ type alias PreviewConfig =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    { viewPoint = ( 100, 100, 100 )
+    let
+        viewPoint = ( 100, 100, 100 )
+        ( x, y, z ) = viewPoint
+        distance = sqrt (x * x + y * y + z * z)
+        azimuth = Angle.radians (atan2 y x)
+        elevation = Angle.radians (asin (z / distance))
+    in
+    { sceneModel = 
+        { azimuth = azimuth
+        , elevation = elevation
+        , distance = distance
+        , orbiting = False
+        , viewPoint = viewPoint
+        }
     , sourceFilePath = "../hoge.lisp"
     , sourceCode = ""
     , console = []
@@ -79,6 +93,7 @@ type Msg
     = FromTauri Bindings.FromTauriCmdType
     | ToTauri Bindings.ToTauriCmdType
     | SetSourceFilePath String
+    | SceneMsg Scene.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -127,6 +142,14 @@ update msg mPrev =
             mPrev
                 |> s_sourceFilePath path
                 |> noCmd
+                
+        SceneMsg sceneMsg ->
+            let
+                updatedSceneModel = Scene.update sceneMsg mPrev.sceneModel
+            in
+            mPrev
+                |> s_sceneModel updatedSceneModel
+                |> noCmd
 
 
 
@@ -134,8 +157,11 @@ update msg mPrev =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    TauriCmd.fromTauri FromTauri
+subscriptions model =
+    Sub.batch
+        [ TauriCmd.fromTauri FromTauri
+        , Sub.map SceneMsg (Scene.subscriptions model.sceneModel)
+        ]
 
 
 
@@ -161,7 +187,7 @@ view model =
     div [ css [ displayGrid, gridTemplateColumns "repeat(2, 1fr)", gridColumnGap "10px", height (pct 100) ] ]
         [ div [ css [ height (pct 100) ] ]
             (model.previews
-                |> List.map (\{ stl } -> Scene.preview model entity stl)
+                |> List.map (\{ stl } -> Html.Styled.map SceneMsg (Scene.preview model.sceneModel entity stl))
             )
         , div []
             [ text "file path"

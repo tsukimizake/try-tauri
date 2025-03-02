@@ -44,6 +44,11 @@ s_all value__ record__ =
     { record__ | all = value__ }
 
 
+s_allowCookiesFromOtherDomains : a -> { b | allowCookiesFromOtherDomains : a } -> { b | allowCookiesFromOtherDomains : a }
+s_allowCookiesFromOtherDomains value__ record__ =
+    { record__ | allowCookiesFromOtherDomains = value__ }
+
+
 s_alpha : a -> { b | alpha : a } -> { b | alpha : a }
 s_alpha value__ record__ =
     { record__ | alpha = value__ }
@@ -1669,6 +1674,11 @@ s_options value__ record__ =
     { record__ | options = value__ }
 
 
+s_orbiting : a -> { b | orbiting : a } -> { b | orbiting : a }
+s_orbiting value__ record__ =
+    { record__ | orbiting = value__ }
+
+
 s_orientation : a -> { b | orientation : a } -> { b | orientation : a }
 s_orientation value__ record__ =
     { record__ | orientation = value__ }
@@ -2037,6 +2047,11 @@ s_scanningProcess value__ record__ =
 s_scene : a -> { b | scene : a } -> { b | scene : a }
 s_scene value__ record__ =
     { record__ | scene = value__ }
+
+
+s_sceneModel : a -> { b | sceneModel : a } -> { b | sceneModel : a }
+s_sceneModel value__ record__ =
+    { record__ | sceneModel = value__ }
 
 
 s_sceneProperties : a -> { b | sceneProperties : a } -> { b | sceneProperties : a }
