@@ -569,7 +569,7 @@ pub enum Token<'a> {
 
 fn symbol(input: Span) -> IResult<Span, Token> {
     map(
-        take_while1(|c: char| c.is_alphanumeric() || "_+-*/<>#?!".contains(c)),
+        take_while1(|c: char| c.is_alphanumeric() || "_+-*/<>#?!.".contains(c)),
         Token::Symbol,
     )(input)
 }
