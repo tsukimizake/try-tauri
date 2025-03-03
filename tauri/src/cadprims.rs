@@ -22,15 +22,10 @@ fn return_model<T: Into<Model>>(model_into: T, env: Arc<Mutex<Env>>) -> Result<A
 /// Load an STL file into the environment
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (load-stl "path/to/file.stl")
-/// ```
+/// `(load-stl "path/to/file.stl")`
 ///
 /// # Returns
-///
 /// A model expression representing the loaded STL file.
-/// The model is also bound to the variable `stl` in the environment.
 #[lisp_fn]
 fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;
@@ -53,13 +48,9 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 /// Mark a model for preview/rendering in the UI
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (preview model)
-/// ```
+/// `(preview model)`
 ///
 /// # Returns
-///
 /// The model that was marked for preview
 #[lisp_fn]
 fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
@@ -88,32 +79,15 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
 /// Create a point at the specified coordinates
 ///
 /// # Lisp Usage
-///
-/// This function is available as both `point` and `p` in Lisp:
-///
-/// ```lisp
-/// (point x y z)  ;; Using the full name with 3 coordinates
-/// (point x y)    ;; Using the full name with 2 coordinates (z=0)
-/// (p x y z)      ;; Using the shorthand alias with 3 coordinates
-/// (p x y)        ;; Using the shorthand alias with 2 coordinates (z=0)
-/// ```
+/// `(point x y z)` or `(point x y)` or `(p x y z)` or `(p x y)`
+/// When z is omitted, it defaults to 0.
 ///
 /// # Examples
-///
-/// ```lisp
-/// (point 1 2 3)  ;; Create a point at (1, 2, 3)
-/// (p 0 0 0)      ;; Create a point at origin using the shorthand
-/// (p 10 5)       ;; Create a point at (10, 5, 0) - z defaults to 0
-///
-/// ;; Create multiple points
-/// (define p1 (p 0 0 0))
-/// (define p2 (p 1 0))    ;; z defaults to 0
-/// (define p3 (p 0 1 0))
-/// ```
+/// `(p 1 2 3)` - point at (1,2,3)
+/// `(p 10 5)` - point at (10,5,0)
 ///
 /// # Returns
-///
-/// A model expression representing the created point
+/// A point model
 #[lisp_fn("p")]
 fn point(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2..=3).map_err(|e| format!("point: {}", e))?;
@@ -134,32 +108,13 @@ fn point(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> 
 /// Create a line between two points
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (line point1 point2)
-/// ```
+/// `(line point1 point2)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (define p1 (p 0 0 0))
-/// (define p2 (p 1 1 1))
-/// (line p1 p2)  ;; Create a line from origin to (1,1,1)
-///
-/// ;; Create a square using lines
-/// (define p1 (p 0 0 0))
-/// (define p2 (p 1 0 0))
-/// (define p3 (p 1 1 0))
-/// (define p4 (p 0 1 0))
-/// (define l1 (line p1 p2))
-/// (define l2 (line p2 p3))
-/// (define l3 (line p3 p4))
-/// (define l4 (line p4 p1))
-/// ```
+/// `(line (p 0 0) (p 1 1))` - line from origin to (1,1,0)
 ///
 /// # Returns
-///
-/// A model expression representing the created line (edge)
+/// A line (edge) model
 #[lisp_fn]
 fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2)?;
@@ -175,24 +130,16 @@ fn line(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     return_model(Model::Edge(Arc::new(edge)), env)
 }
 
-/// turtle_sketch to create a face from a sequence of points.
+/// Create a face from a sequence of points using turtle-like movement
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (turtle point1 point2 point3 ...)
-/// ```
+/// `(turtle point1 point2 point3 ...)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// ;; Create a square face
-/// (turtle (p 0 0) (p 1 0) (p 1 1) (p 0 1))
-/// ```
+/// `(turtle (p 0 0) (p 1 0) (p 1 1) (p 0 1))` - square face
 ///
 /// # Returns
-///
-/// A model expression representing the created face
+/// A face model
 #[lisp_fn("turtle")]
 fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 3..).map_err(|e| format!("turtle: {}", e))?;
@@ -242,24 +189,16 @@ fn turtle_sketch(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, 
     return_model(Arc::new(face), env)
 }
 
-/// Create a circle wire in the XY plane
+/// Create a circle in the XY plane
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (circle x y r)
-/// ```
+/// `(circle x y radius)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (circle 0 0 5)  ;; Create a circle at origin with radius 5
-/// (circle 10 20 3)  ;; Create a circle at (10, 20) with radius 3
-/// ```
+/// `(circle 0 0 5)` - circle at origin with radius 5
 ///
 /// # Returns
-///
-/// A model expression representing the created circle wire
+/// A circle face model
 #[lisp_fn]
 fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 3)?;
@@ -281,6 +220,16 @@ fn circle(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
     return_model(Model::Face(Arc::new(face)), env)
 }
 
+/// Extrude a face along the Z axis
+///
+/// # Lisp Usage
+/// `(linear-extrude face height)`
+///
+/// # Examples
+/// `(linear-extrude (circle 0 0 5) 10)` - cylinder with radius 5 and height 10
+///
+/// # Returns
+/// A solid model
 #[lisp_fn]
 fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 2)?;
@@ -292,6 +241,13 @@ fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
     return_model(Arc::new(solid), env)
 }
 
+/// Convert a solid to a mesh for rendering
+///
+/// # Lisp Usage
+/// `(to-mesh solid)`
+///
+/// # Returns
+/// A mesh model that can be previewed
 #[lisp_fn]
 fn to_mesh(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;

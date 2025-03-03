@@ -606,18 +606,11 @@ fn prim_list(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Str
 /// Check if an expression is a list
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (list? expr)
-/// ```
+/// `(list? expr)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (list? '(1 2 3))  ;; Returns #t
-/// (list? 42)        ;; Returns #f
-/// (list? "hello")   ;; Returns #f
-/// ```
+/// `(list? '(1 2 3))` - returns #t
+/// `(list? 42)` - returns #f
 #[lisp_sp_form("list?")]
 fn prim_list_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;
@@ -633,16 +626,10 @@ fn prim_list_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
 /// Get the first element of a list
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (first list)
-/// ```
+/// `(car list)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (first '(1 2 3))  ;; Returns 1
-/// ```
+/// `(car '(1 2 3))` - returns 1
 #[lisp_sp_form("car")]
 fn prim_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;
@@ -664,16 +651,10 @@ fn prim_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Str
 /// Get all elements of a list except the first
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (rest list)
-/// ```
+/// `(cdr list)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (rest '(1 2 3))  ;; Returns (2 3)
-/// ```
+/// `(cdr '(1 2 3))` - returns (2 3)
 #[lisp_sp_form("cdr")]
 fn prim_rest(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;
@@ -707,18 +688,11 @@ fn prim_rest(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
 /// Check if a list is empty
 ///
 /// # Lisp Usage
-///
-/// ```lisp
-/// (null? list)
-/// ```
+/// `(null? list)`
 ///
 /// # Examples
-///
-/// ```lisp
-/// (null? '())       ;; Returns #t
-/// (null? '(1 2 3))  ;; Returns #f
-/// (null? 42)        ;; Returns #f (not a list)
-/// ```
+/// `(null? '())` - returns #t
+/// `(null? '(1 2 3))` - returns #f
 #[lisp_sp_form("null?")]
 fn prim_null_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     assert_arg_count(args, 1)?;
@@ -737,6 +711,13 @@ fn prim_null_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
     }
 }
 
+/// Thread-first macro - inserts each expression as the first argument to the next form
+///
+/// # Lisp Usage
+/// `(-> initial-value (form1 args...) (form2 args...))`
+///
+/// # Examples
+/// `(-> 1 (+ 2) (* 3))` - equivalent to (* (+ 1 2) 3)
 #[lisp_sp_form("->")]
 fn thread_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     if args.len() < 2 {
