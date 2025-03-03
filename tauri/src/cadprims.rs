@@ -8,6 +8,7 @@ use inventory;
 use lisp_macro::lisp_fn;
 use std::sync::{Arc, Mutex};
 use truck_meshalgo::prelude::*;
+use truck_modeling::Solid;
 use truck_modeling::{Point3, builder};
 use truck_topology::EdgeDisplayFormat;
 use truck_topology::VertexDisplayFormat;
@@ -274,4 +275,94 @@ fn debug(wire: &truck_modeling::Wire) {
     let _edge_format = EdgeDisplayFormat::Full { vertex_format };
     let wire_format = WireDisplayFormat::VerticesList { vertex_format };
     println!("{:?}", wire.display(wire_format));
+}
+
+/// Create the intersection of two or more solid models
+///
+/// # Lisp Usage
+/// `(and solid1 solid2 ...)`
+///
+/// # Examples
+/// `(and (linear-extrude (circle 0 0 5) 10) (linear-extrude (circle 5 0 5) 10))` - intersection of two cylinders
+///
+/// # Returns
+/// A solid model representing the intersection
+#[lisp_fn]
+fn and(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 2..).map_err(|e| format!("and: {}", e))?;
+
+    let solids = args
+        .iter()
+        .map(|expr| extract::solid(expr.as_ref(), &env))
+        .collect::<Result<Vec<_>, String>>()?;
+
+    if solids.len() < 2 {
+        return Err("and: expected at least 2 solid models".to_string());
+    }
+
+    let mut result: Arc<Solid> = Arc::new((*solids[0]).clone());
+
+    for solid in &solids[1..] {
+        result = match truck_shapeops::and(&result, solid, 0.01) {
+            Some(solid) => solid.into(),
+            None => return Err(format!("Boolean AND operation failed")),
+        };
+    }
+    return_model(result, env)
+}
+
+/// Create the union of two or more solid models
+///
+/// # Lisp Usage
+/// `(or solid1 solid2 ...)`
+///
+/// # Examples
+/// `(or (linear-extrude (circle 0 0 5) 10) (linear-extrude (circle 5 0 5) 10))` - union of two cylinders
+///
+/// # Returns
+/// A solid model representing the union
+#[lisp_fn]
+fn or(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 2..).map_err(|e| format!("or: {}", e))?;
+
+    let solids = args
+        .iter()
+        .map(|expr| extract::solid(expr.as_ref(), &env))
+        .collect::<Result<Vec<_>, String>>()?;
+
+    if solids.len() < 2 {
+        return Err("or: expected at least 2 solid models".to_string());
+    }
+
+    let mut result: Arc<Solid> = Arc::new((*solids[0]).clone());
+
+    for solid in &solids[1..] {
+        result = match truck_shapeops::or(&result, solid, 0.01) {
+            Some(solid) => solid.into(),
+            None => return Err(format!("Boolean OR operation failed")),
+        };
+    }
+    return_model(result, env)
+}
+
+/// Subtract one or more solids from the first solid
+///
+/// # Lisp Usage
+/// `(not base_solid solid_to_subtract1 solid_to_subtract2 ...)`
+///
+/// # Examples
+/// `(not (linear-extrude (circle 0 0 10) 10) (linear-extrude (circle 0 0 5) 20))` - cylinder with a hole
+///
+/// # Returns
+/// A solid model representing the difference
+#[lisp_fn]
+fn not(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 1)?;
+
+    let solid = extract::solid(args[0].as_ref(), &env)?;
+
+    let mut result: Solid = (*solid).clone();
+    result.not();
+
+    return_model(Arc::new(result), env)
 }
