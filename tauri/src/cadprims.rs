@@ -55,6 +55,7 @@ fn load_stl(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Strin
 /// The model that was marked for preview
 #[lisp_fn]
 fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    println!("preview: {:?}", args);
     assert_arg_count(args, 1)?;
     match args[0].as_ref() {
         Expr::Model { id, .. } => {
@@ -65,15 +66,25 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
                 .ok_or_else(|| format!("Model with id {} not found", id))?;
 
             // Check if the model is a mesh
-            if model.as_mesh().is_none() {
-                return Err("preview: expected mesh model".to_string());
-            }
+            if let Some(_) = model.as_mesh() {
+                // Add to preview list using the same lock
+                env_guard.insert_preview_list(*id);
 
-            // Add to preview list using the same lock
-            env_guard.insert_preview_list(*id);
-            Ok(args[0].clone())
+                Ok(args[0].clone())
+            } else if let Some(solid) = model.as_solid() {
+                let mesh = Arc::new(solid.triangulation(0.01).to_polygon());
+                let mesh_clone = mesh.clone();
+                let id = env_guard.insert_model(Model::Mesh(mesh));
+                env_guard.insert_preview_list(id);
+
+                drop(env_guard);
+                return_model(Model::Mesh(mesh_clone), env)
+            } else {
+                Err("preview: expected solid or mesh model".to_string())
+            }
         }
-        _ => Err("preview: expected mesh model".to_string()),
+
+        _ => Err("preview: expected solid or mesh model".to_string()),
     }
 }
 
@@ -242,31 +253,13 @@ fn linear_extrude(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>,
     return_model(Arc::new(solid), env)
 }
 
-/// Convert a solid to a mesh for rendering
-///
-/// # Lisp Usage
-/// `(to-mesh solid)`
-///
-/// # Returns
-/// A mesh model that can be previewed
-#[lisp_fn]
-fn to_mesh(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    assert_arg_count(args, 1)?;
-
-    let solid = extract::solid(args[0].as_ref(), &env)?;
-
-    let mesh = solid.triangulation(0.01).to_polygon();
-    return_model(Arc::new(mesh), env)
-}
-
 #[lisp_fn]
 fn sandbox(_: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
     let wire = truck_modeling::Wire::from(vec![]);
     let face =
         truck_modeling::builder::try_attach_plane(&[wire]).map_err(|e| format!("{:?}", e))?;
     let solid = truck_modeling::builder::tsweep(&face, truck_modeling::Vector3::unit_z());
-    let mesh = solid.triangulation(0.01).to_polygon();
-    return_model(Arc::new(mesh), env)
+    return_model(Arc::new(solid), env)
 }
 
 #[allow(dead_code)]
