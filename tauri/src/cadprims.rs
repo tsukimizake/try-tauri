@@ -73,12 +73,11 @@ fn preview(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String
                 Ok(args[0].clone())
             } else if let Some(solid) = model.as_solid() {
                 let mesh = Arc::new(solid.triangulation(0.01).to_polygon());
-                let mesh_clone = mesh.clone();
-                let id = env_guard.insert_model(Model::Mesh(mesh));
+                let id = env_guard.insert_model(Model::Mesh(mesh.clone()));
                 env_guard.insert_preview_list(id);
-
+                
                 drop(env_guard);
-                return_model(Model::Mesh(mesh_clone), env)
+                return_model(Model::Mesh(mesh), env)
             } else {
                 Err("preview: expected solid or mesh model".to_string())
             }
