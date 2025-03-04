@@ -5,7 +5,7 @@ members = [
 ]
 
 [package]
-name = "micad"
+name = "daccad"
 version = "0.0.0"
 description = "A CAD software for myself"
 authors = ["tsukimizake"]
