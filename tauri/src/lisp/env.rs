@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use truck_polymesh::PolygonMesh;
+use truck_modeling::{Curve, Mapped, Surface};
+use truck_polymesh::{Point3, PolygonMesh};
 
 use super::gc;
 use super::parser::Expr;
@@ -391,10 +392,7 @@ pub mod extract {
     }
 
     /// Extract a point3 from an expression
-    pub fn point3(
-        expr: &Expr,
-        env: &Arc<Mutex<Env>>,
-    ) -> Result<truck_modeling::Point3, String> {
+    pub fn point3(expr: &Expr, env: &Arc<Mutex<Env>>) -> Result<truck_modeling::Point3, String> {
         model(expr, env, |m| m.as_point3().cloned(), "point3")
     }
 }
