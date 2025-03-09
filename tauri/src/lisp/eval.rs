@@ -742,10 +742,16 @@ fn prim_null_p(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, St
 ///
 /// # Examples
 /// `(-> 1 (+ 2) (* 3))` - equivalent to (* (+ 1 2) 3)
+/// `(-> value)` - just returns value
 #[lisp_sp_form("->")]
 fn thread_first(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
-    if args.len() < 2 {
-        return Err("-> requires at least 2 arguments".to_string());
+    if args.is_empty() {
+        return Err("-> requires at least 1 argument".to_string());
+    }
+    
+    // If only one argument, just evaluate and return it
+    if args.len() == 1 {
+        return eval(args[0].clone(), env);
     }
 
     // Evaluate the first argument
@@ -1090,6 +1096,13 @@ mod tests {
     #[test]
     fn test_thread_macro() {
         let env = default_env();
+
+        // Test single argument case
+        let exprs = parser::parse_file("(-> 42)").unwrap();
+        assert_eq!(
+            eval_exprs(exprs, env.clone()).map(|r| r.value.clone()),
+            Ok(Value::Integer(42))
+        );
 
         // Test basic threading with function call
         let exprs = parser::parse_file("(-> 1 (+ 2))").unwrap();
