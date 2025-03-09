@@ -7,6 +7,7 @@ use lisp_macro::{lisp_fn, lisp_sp_form};
 use std::sync::{Arc, Mutex};
 
 use super::Evaled;
+use super::env::extract;
 
 pub fn eval_exprs(exprs: Vec<parser::Expr>, env: Arc<Mutex<Env>>) -> Result<Arc<Evaled>, String> {
     // Only evaluate the last expression for the result
@@ -398,6 +399,29 @@ fn prim_sub(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
             _ => Err("sub requires integer or double arguments".to_string()),
         })
         .map(|r| Arc::new(Expr::integer(r)))
+}
+
+#[lisp_fn("*")]
+fn prim_mul(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 1..)?;
+    args.iter()
+        .try_fold(1, |acc, arg| match arg.as_ref() {
+            Expr::Integer { value, .. } => Ok(acc * value),
+            Expr::Double { value, .. } => Ok(acc * *value as i64),
+            _ => Err("mul requires integer or double arguments".to_string()),
+        })
+        .map(|r| Arc::new(Expr::integer(r)))
+}
+
+#[lisp_fn("/")]
+fn prim_div(args: &[Arc<Expr>], _env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
+    assert_arg_count(args, 2)?;
+    let a = extract::number(args.first().unwrap())?;
+    let b = extract::number(args.last().unwrap())?;
+    if b == 0.0 {
+        return Err("Division by zero".to_string());
+    }
+    Ok(Arc::new(Expr::double(a / b)))
 }
 
 #[lisp_fn("<")]

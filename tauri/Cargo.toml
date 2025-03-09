@@ -23,13 +23,15 @@ nom = "7.1.3"
 inventory = "0.3"
 lisp_macro = { path = "./lisp_macro" }
 nom_locate = "4.2.0"
-truck-polymesh = "0.6.0"
-truck-modeling = "0.6.0"
-truck-meshalgo = "0.4.0"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
-truck-topology = "0.6.0"
-truck-shapeops = "0.4.0"
+
+truck-polymesh = { path = "/Users/tsukimizake/truck/truck-polymesh/" }
+truck-modeling = { path = "/Users/tsukimizake/truck/truck-modeling/" }
+truck-meshalgo = { path = "/Users/tsukimizake/truck/truck-meshalgo/" }
+truck-topology = { path = "/Users/tsukimizake/truck/truck-topology/" }
+truck-shapeops = { path = "/Users/tsukimizake/truck/truck-shapeops/" }
+
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

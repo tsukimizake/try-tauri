@@ -505,6 +505,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -737,11 +746,33 @@ version = "0.99.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3da29a38df43d6f156149c9b43ded5e018ddff2a855cf2cfd62e8cd7d079c69f"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "rustc_version",
  "syn 2.0.99",
+]
+
+[[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.99",
+ "unicode-xid",
 ]
 
 [[package]]
@@ -3454,7 +3485,7 @@ checksum = "5df866eb24b48dd4bb8a3cb0dfeb3a25ff2c251ed93aae1cbfc03eb8ee3c7dcc"
 dependencies = [
  "Inflector",
  "derive-new",
- "derive_more",
+ "derive_more 0.99.19",
  "itertools 0.10.5",
  "nom 7.1.3",
  "ruststep-derive",
@@ -3544,7 +3575,7 @@ checksum = "df320f1889ac4ba6bc0cdc9c9af7af4bd64bb927bccdf32d81140dc1f9be12fe"
 dependencies = [
  "bitflags 1.3.2",
  "cssparser",
- "derive_more",
+ "derive_more 0.99.19",
  "fxhash",
  "log",
  "matches",
@@ -4614,8 +4645,6 @@ dependencies = [
 [[package]]
 name = "truck-base"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c279de9e92e5dc20a188deb0bb9a4bd421a6a185e57e03e19025e84a36c5a05"
 dependencies = [
  "cgmath",
  "matext4cgmath",
@@ -4626,8 +4655,6 @@ dependencies = [
 [[package]]
 name = "truck-derivers"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "421ff1c5a303aed64e295d9b30e8424ee7a2fa251617a59ae4acfd078496009f"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -4638,11 +4665,9 @@ dependencies = [
 [[package]]
 name = "truck-geometry"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d9d85f203fdbc2d206a38b8e7c4417a05a2eb589be8b81ecfe9f98faafc425d"
 dependencies = [
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "truck-base",
  "truck-geotrait",
 ]
@@ -4650,12 +4675,10 @@ dependencies = [
 [[package]]
 name = "truck-geotrait"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97a31fe98d5a0589ad20576260e214af23dea21a8d125da81ad3bbcb666f411f"
 dependencies = [
  "getrandom 0.2.15",
  "rand 0.8.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "truck-base",
  "truck-derivers",
 ]
@@ -4663,11 +4686,9 @@ dependencies = [
 [[package]]
 name = "truck-meshalgo"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e18f325738e822c79bb1a48897ec789cbf50cbeeb0841105295f9da85bdf3613"
 dependencies = [
  "array-macro",
- "derive_more",
+ "derive_more 1.0.0",
  "itertools 0.13.0",
  "rayon",
  "rustc-hash",
@@ -4682,13 +4703,12 @@ dependencies = [
 [[package]]
 name = "truck-modeling"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8082c2dfac8c2732a014d81807fb5d24dbac0d72ee4de2a705b7fbc05fa05b18"
 dependencies = [
- "derive_more",
+ "derive_more 1.0.0",
+ "itertools 0.13.0",
  "rustc-hash",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "truck-base",
  "truck-geometry",
  "truck-geotrait",
@@ -4699,15 +4719,13 @@ dependencies = [
 [[package]]
 name = "truck-polymesh"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8f22def310af4a89c37beb4839bbf702b302d2c112ea29553759f0e16622fbf"
 dependencies = [
  "array-macro",
  "bytemuck",
  "itertools 0.13.0",
  "rustc-hash",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "truck-base",
  "truck-geotrait",
 ]
@@ -4715,10 +4733,8 @@ dependencies = [
 [[package]]
 name = "truck-shapeops"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd6e83ea4d36d00229d38ab985a991e32f58c3ed2971083011ac66fb57e26d5c"
 dependencies = [
- "derive_more",
+ "derive_more 1.0.0",
  "itertools 0.13.0",
  "rustc-hash",
  "truck-base",
@@ -4732,11 +4748,9 @@ dependencies = [
 [[package]]
 name = "truck-stepio"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d29cf5b0dec4b927e80b5dca26ce3ca69601c77ea5b9c953e30bfc3e123d189"
 dependencies = [
  "chrono",
- "derive_more",
+ "derive_more 1.0.0",
  "ruststep",
  "serde",
  "truck-derivers",
@@ -4750,15 +4764,13 @@ dependencies = [
 [[package]]
 name = "truck-topology"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf62a1610405c5e39ab5eb6948f326fc1641689734a6b8207a80792133fe0e78"
 dependencies = [
  "parking_lot",
  "rayon",
  "rclite",
  "rustc-hash",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "truck-base",
  "truck-geotrait",
 ]
@@ -4844,6 +4856,12 @@ name = "unicode-segmentation"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
+
+[[package]]
+name = "unicode-xid"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "untrusted"

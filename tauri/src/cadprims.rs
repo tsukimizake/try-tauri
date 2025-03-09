@@ -3,6 +3,7 @@ use crate::lisp::env::LispPrimitive;
 use crate::lisp::env::Model;
 use crate::lisp::env::extract;
 use crate::lisp::eval::assert_arg_count;
+use crate::lisp::eval::eval;
 use crate::lisp::parser::Expr;
 use inventory;
 use lisp_macro::lisp_fn;
@@ -293,15 +294,15 @@ fn and(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
         return Err("and: expected at least 2 solid models".to_string());
     }
 
-    let mut result: Arc<Solid> = Arc::new((*solids[0]).clone());
+    let mut result = (*solids[0]).clone();
 
     for solid in &solids[1..] {
-        result = match truck_shapeops::and(&result, solid, 0.01) {
-            Some(solid) => solid.into(),
+        result = match truck_shapeops::and(&result, &**solid, 0.01) {
+            Some(solid) => solid,
             None => return Err(format!("Boolean AND operation failed")),
         };
     }
-    return_model(result, env)
+    return_model(Arc::new(result), env)
 }
 
 /// Create the union of two or more solid models
@@ -327,15 +328,15 @@ fn or(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String> {
         return Err("or: expected at least 2 solid models".to_string());
     }
 
-    let mut result: Arc<Solid> = Arc::new((*solids[0]).clone());
+    let mut result = (*solids[0]).clone();
 
     for solid in &solids[1..] {
-        result = match truck_shapeops::or(&result, solid, 0.01) {
-            Some(solid) => solid.into(),
+        result = match truck_shapeops::or(&result, &**solid, 0.01) {
+            Some(solid) => solid,
             None => return Err(format!("Boolean OR operation failed")),
         };
     }
-    return_model(result, env)
+    return_model(Arc::new(result), env)
 }
 
 /// Subtract one or more solids from the first solid
@@ -379,13 +380,14 @@ fn translate(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
         _ => return Err("translate: expected a model as the first argument".to_string()),
     };
 
-    let dx = extract::number(args[1].as_ref())?;
-    let dy = extract::number(args[2].as_ref())?;
-    let dz = extract::number(args[3].as_ref())?;
+    let dx = extract::number(eval(args[1].clone(), env.clone())?.as_ref())?;
+    let dy = extract::number(eval(args[2].clone(), env.clone())?.as_ref())?;
+    let dz = extract::number(eval(args[3].clone(), env.clone())?.as_ref())?;
 
     let translation = truck_modeling::Vector3::new(dx, dy, dz);
-    let env_guard = env.lock().unwrap();
-    let model = env_guard
+    let model = env
+        .lock()
+        .unwrap()
         .get_model(model_id)
         .ok_or_else(|| format!("Model with id {} not found", model_id))?;
     let translated_model = match model.as_ref() {
@@ -397,7 +399,6 @@ fn translate(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, Stri
         Model::Mesh(_) => Err("nothing can be done on mesh".to_string()),
         _ => Err("translate: TODO".to_string()),
     }?;
-    drop(env_guard);
     return_model(translated_model, env)
 }
 
@@ -420,7 +421,7 @@ fn rotate(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
         _ => return Err("rotate: expected a model as the first argument".to_string()),
     };
 
-    let origin = extract::point3(args[1].as_ref(), &env)?;
+    let origin = extract::point3(eval(args[1].clone(), env.clone())?.as_ref(), &env.clone())?;
     let axis = match args[2].as_ref() {
         Expr::Symbol { name, .. } => match name.as_str() {
             "x" => truck_modeling::Vector3::unit_x(),
@@ -432,9 +433,10 @@ fn rotate(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
     };
     let angle: f64 = extract::number(args[3].as_ref())?;
 
-    let angle_rad = truck_polymesh::Rad(angle);
-    let env_guard = env.lock().unwrap();
-    let model = env_guard
+    let angle_deg = truck_polymesh::Deg(angle);
+    let model = env
+        .lock()
+        .unwrap()
         .get_model(model_id)
         .ok_or_else(|| format!("Model with id {} not found", model_id))?;
     let rotated_model = match model.as_ref() {
@@ -443,31 +445,30 @@ fn rotate(args: &[Arc<Expr>], env: Arc<Mutex<Env>>) -> Result<Arc<Expr>, String>
             w.as_ref(),
             origin,
             axis,
-            angle_rad,
+            angle_deg.into(),
         )))),
         Model::Edge(e) => Ok(Model::Edge(Arc::new(rotated(
             e.as_ref(),
             origin,
             axis,
-            angle_rad,
+            angle_deg.into(),
         )))),
         Model::Face(f) => Ok(Model::Face(Arc::new(rotated(
             f.as_ref(),
             origin,
             axis,
-            angle_rad,
+            angle_deg.into(),
         )))),
         Model::Solid(s) => Ok(Model::Solid(Arc::new(rotated(
             s.as_ref(),
             origin,
             axis,
-            angle_rad,
+            angle_deg.into(),
         )))),
         Model::Mesh(_) => Err("nothing can be done on mesh".to_string()),
 
         _ => Err("rotate: TODO".to_string()),
     }?;
 
-    drop(env_guard);
     return_model(rotated_model, env)
 }

@@ -27,12 +27,9 @@ pub fn cast_evaled(expr: Arc<Expr>) -> Value {
         Expr::Model { id, .. } => Value::Stl(*id),
         Expr::String { value, .. } => Value::String(value.clone()),
         Expr::Symbol { name, .. } => Value::Symbol(name.clone()),
-        Expr::List { elements, .. } => Value::List(
-            elements
-                .iter()
-                .map(|e| cast_evaled(e.clone()))
-                .collect(),
-        ),
+        Expr::List { elements, .. } => {
+            Value::List(elements.iter().map(|e| cast_evaled(e.clone())).collect())
+        }
         Expr::Quote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
         Expr::Quasiquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
         Expr::Unquote { expr, .. } => cast_evaled(Arc::new((**expr).clone())),
@@ -229,7 +226,7 @@ impl PartialEq for Expr {
             ) => e1 == e2 && loc1 == loc2 && tn1 == tn2,
 
             (Builtin { name: n1, .. }, Builtin { name: n2, .. }) => n1 == n2,
-            
+
             (SpecialForm { name: n1, .. }, SpecialForm { name: n2, .. }) => n1 == n2,
 
             (
@@ -244,7 +241,7 @@ impl PartialEq for Expr {
                     env: e2,
                 },
             ) => a1 == a2 && b1 == b2 && Arc::ptr_eq(e1, e2),
-            
+
             (
                 Macro {
                     args: a1,
@@ -320,7 +317,7 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    
+
     #[allow(dead_code)]
     pub fn quasiquote(expr: Expr) -> Self {
         Expr::Quasiquote {
@@ -329,7 +326,7 @@ impl Expr {
             trailing_newline: false,
         }
     }
-    
+
     #[allow(dead_code)]
     pub fn unquote(expr: Expr) -> Self {
         Expr::Unquote {
@@ -638,16 +635,18 @@ fn tokenize(input: Span) -> IResult<Span, Vec<Token>> {
     let (input, all_tokens) = many0(delimited(
         space0,
         alt((
-            string, double, integer, symbol, quote, quasiquote, unquote, lparen, rparen, newline, comment,
+            string, double, integer, symbol, quote, quasiquote, unquote, lparen, rparen, newline,
+            comment,
         )),
         space0,
     ))(input)?;
-    
+
     // Then filter out comments
-    let tokens = all_tokens.into_iter()
+    let tokens = all_tokens
+        .into_iter()
         .filter(|token| !matches!(token, Token::Comment(_)))
         .collect();
-        
+
     Ok((input, tokens))
 }
 #[cfg(test)]
@@ -664,15 +663,15 @@ mod tokenize_tests {
         // Comments should be removed from the token stream
         let input = Span::new("; This is a comment\n(+ 1 2)");
         let result = tokenize(input).unwrap().1;
-        
+
         // The comment should be stripped, leaving only the expression tokens
         assert_eq!(result.len(), 6); // Newline, LParen, Symbol(+), Integer(1), Integer(2), RParen
         assert!(matches!(result[1], Token::LParen(_)));
-        
+
         // Test inline comments
         let input = Span::new("(+ 1 2) ; This is an inline comment\n(- 3 4)");
         let result = tokenize(input).unwrap().1;
-        
+
         // Should have tokens for both expressions, but no comment
         assert_eq!(result.len(), 11); // 5 for first expr, newline, 5 for second expr
     }
